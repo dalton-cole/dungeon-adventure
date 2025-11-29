@@ -10,4 +10,4 @@ def slow_print(msg):
 
 def slow_input(msg, fn=str):
   slow_print(msg)
-  return fn(input(''))
+  return fn(input('').lower().strip())

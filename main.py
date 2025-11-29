@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from print import slow_print
+from print import slow_print, slow_input
 from player import Player
 from dungeon import Labyrinth
 
 
 if __name__ == '__main__':
-  the_labyrinth = Labyrinth(2)
+  the_labyrinth = Labyrinth(slow_input('What size of labyrinth would you like?', int))
   the_player = Player(the_labyrinth.start_location)
   slow_print('You wake up in a dimly lit room.')
   the_labyrinth.map[tuple(the_labyrinth.start_location)].describe()

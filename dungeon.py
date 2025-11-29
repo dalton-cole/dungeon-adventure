@@ -14,7 +14,7 @@ chest_size_to_gold = {
   'huge'   : 5000
 }
 max_chests_per_room = 3
-max_number_monsters_per_room = 3
+max_number_monsters_per_room = 2
 
 class TreasureChest:
   def __init__(self):
@@ -23,25 +23,36 @@ class TreasureChest:
 
 class Room:
   def __init__(self, doors):
+    self.doors = doors
     self.monsters = []
     self.treasure = []
-    self.doors = doors
     self.generate()
+
+class NormalRoom(Room):
+  def generate(self):
+    for _ in range(randint(0, max_chests_per_room)):
+      self.treasure.append(TreasureChest())
+    for _ in range(randint(0, max_number_monsters_per_room)):
+      self.monsters.append(choices([Goblin(), DarkKnight(), Dragon()], weights=[0.5, 0.4, 0.1])[0])
   def describe(self):
     slow_print(f'You are in a room with:')
     slow_print(f' - {len(self.doors)} doors')
     for door in self.doors:
-      print(f'   - a door to the {door}')
+      print(f'   - a door to the ({door[0]}){door[1:]}')
     slow_print(f' - {len(self.treasure):n} chests')
     if self.monsters:
       slow_print(f' - {len(self.monsters):n} monsters')
     for monster in self.monsters:
       slow_print(f'   - {monster.name}')
+
+class MerchantRoom(Room):
   def generate(self):
-    for i in range(randint(0, max_chests_per_room)):
-      self.treasure.append(TreasureChest())
-    for i in range(randint(0, max_number_monsters_per_room)):
-      self.monsters.append(choices([Goblin(), DarkKnight(), Dragon()], weights=[0.5, 0.4, 0.1])[0])
+    self.items = {
+      'health potion' : 100
+    }
+  def describe(self):
+    slow_print('A figure in a dark robe is hunched in the corner.')
+    slow_print('"Gold for wares..." is heard in a steely voice.')
 
 class Labyrinth:
   def __init__(self, size):
@@ -57,5 +68,8 @@ class Labyrinth:
           doors.append('west')
         if j+1 < self.map.shape[1]:
           doors.append('east')
-        self.map[i,j] = Room(doors)
-    self.start_location = [randint(0, size-1), randint(0, size-1)]
+        if random() < 0.15:
+          self.map[i,j] = MerchantRoom(doors)
+        else:
+          self.map[i,j] = NormalRoom(doors)
+    self.start_location = (randint(0, size-1), randint(0, size-1))
