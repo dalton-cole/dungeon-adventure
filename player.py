@@ -2,9 +2,11 @@
 
 from print import slow_print, slow_input
 from random import random, randint
+from numpy import full
+from copy import deepcopy
 from collections import defaultdict
 from monsters import Monster
-from dungeon import MerchantRoom
+from dungeon import NormalRoom, MerchantRoom
 
 
 allowable_classes = ['fighter', 'mage']
@@ -85,6 +87,7 @@ class Player:
       raise ValueError(f'Player class {player_class} not recognized!')
     self.experience_points = level_to_xp_map[self.level]
     self.location = start_location
+    self.map = None
 
   def battle(self, labyrinth):
     slow_print(f'You face {len(labyrinth.map[self.location].monsters)} monster(s)!')
@@ -103,10 +106,24 @@ class Player:
     self.check_level_up()
 
   def action(self, labyrinth):
+    if self.map is None:
+      self.map = full(labyrinth.map.shape, '?')
     room = labyrinth.map[self.location]
+    if isinstance(room, NormalRoom):
+      if (not room.monsters) and (not room.treasure):
+        self.map[self.location] = 'X'
+      elif room.monsters:
+        self.map[self.location] = 'D'
+      elif room.treasure:
+        self.map[self.location] = 'C'
+    elif isinstance(room, MerchantRoom):
+      self.map[self.location] = 'M'
     choice = slow_input(f'What would you like to do next? [{", ".join(allowable_actions)}]: ')
     if (choice == 'fight') or (choice == 'f'):
-      self.battle(labyrinth)
+      if room.monsters:
+        self.battle(labyrinth)
+      else:
+        slow_print('There are no monsters to fight...')
     elif (choice == 'look') or (choice == 'l'):
       self.look_around(labyrinth)
     elif (choice == 'move') or (choice == 'm'):
@@ -231,6 +248,14 @@ class Player:
       slow_print('You have the following items:')
       for item, quantity in self.inventory.items():
         slow_print(f'- {item} (Amount: {quantity})')
+    if self.map is not None:
+      slow_print('This is what your map looks like:')
+      tmp_map = deepcopy(self.map)
+      tmp_map[self.location] = '*'
+      print('+---' * tmp_map.shape[1] + '+')
+      for i in range(tmp_map.shape[0]):
+        slow_print(f'| {" | ".join([c for c in tmp_map[i, :]])} |')
+        print('+---' * tmp_map.shape[1] + '+')
 
   def shop(self, room: MerchantRoom):
     slow_print('You approach the merchant and inspect his wares...')
@@ -276,7 +301,7 @@ class Player:
         monsters[idx-1].hp -= damage
       else:
         slow_print('Oh no! You missed...')
-      if monsters[idx-1].hp < 0:
+      if monsters[idx-1].hp <= 0:
         slow_print(f'{monsters[idx-1].name} has died!')
         self.experience_points += monsters[idx-1].xp_worth
         monsters.pop(idx-1)
