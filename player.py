@@ -52,7 +52,7 @@ level_to_damage = {
   }
 }
 
-allowable_actions = ['(f)ight', '(l)ook', '(m)ove', '(o)pen', '(c)heck', '(u)se', '(s)ave', '(q)uit']
+allowable_actions = ['(f)ight', '(l)ook/ta(l)k', '(m)ove', '(o)pen', '(c)heck', '(u)se', '(s)ave', '(q)uit']
 allowable_battle_actions = ['(a)ttack', '(i)tem', '(r)un']
 
 class MovementError(Exception):
