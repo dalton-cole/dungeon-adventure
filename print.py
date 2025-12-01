@@ -7,11 +7,20 @@ options = {
   'text delay' : 0.015
 }
 
+option_ranges = {
+  'text delay' : (0, 0.1)
+}
+
+option_check_functions = {
+  'text delay' : lambda x: option_ranges['text delay'][0] <= x < option_ranges['text delay'][1]
+}
+
 def print_settings():
   slow_print('Current options:')
   slow_print(f'Character print delay: {options['text delay']:n} s')
 
-def set_options():
+def set_options(*args):
+  print_settings()
   while True:
     slow_print('Which option would you like to change? [# or (d)one]')
     slow_print('You can change the following options:')
@@ -22,6 +31,7 @@ def set_options():
     if choice != 'done':
       try:
         choice = int(choice)-1
+        choice_key = list(options.keys())[choice]
       except:
         slow_print('Unrecognized command!')
         continue
@@ -32,12 +42,12 @@ def set_options():
         except:
           slow_print("You can't set that value!")
           continue
-        if 0 < value < 0.1:
-          options[list(options.keys())[choice]] = value
-          slow_print(f'Option {list(options.keys())[choice]} has been set to {list(options.values())[choice]}!')
+        if option_check_functions[choice_key](value):
+          options[choice_key] = value
+          slow_print(f'Option {choice_key} has been set to {list(options.values())[choice]}!')
           continue
         else:
-          slow_print("You can't set that value!")
+          slow_print(f"You can't set that value (range: {option_ranges[choice_key][0]} - {option_ranges[choice_key][1]})!")
           continue
       slow_print('That option is not available!')
     else:

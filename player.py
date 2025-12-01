@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from random import random, randint
-from print import slow_print, slow_input, print_settings, set_options
+from print import slow_print, slow_input, set_options
 from save import save_game
 from numpy import full
 from copy import deepcopy
@@ -52,7 +52,28 @@ level_to_damage = {
 }
 
 allowable_actions = ['(f)ight', '(l)ook/ta(l)k', '(m)ove', '(o)pen', '(c)heck', '(u)se', '(s)ave', 'o(p)tions', '(q)uit']
+action_shorthand_map = {
+  'h' : 'help',
+  'f' : 'fight',
+  'l' : 'look',
+  'm' : 'move',
+  'o' : 'open',
+  'c' : 'check',
+  'u' : 'use',
+  's' : 'save',
+  'p' : 'options',
+  'q' : 'quit'
+}
 allowable_battle_actions = ['(a)ttack', '(i)tem', '(r)un']
+
+def quit_game(*args):
+  slow_print('See you next time!')
+  exit()
+
+def print_help(*args):
+  slow_print('The following actions are available:')
+  for action in allowable_actions:
+    slow_print(f' - {action}')
 
 class MovementError(Exception):
   def __init__(self, message):
@@ -65,11 +86,31 @@ class Player:
   def __init__(self, start_location):
     self.gold = 0
     self.inventory = defaultdict(int)
-    level = slow_input('Player starting level: ', int)
-    if level in level_to_xp_map:
-      self.level = level
-    else:
-      raise ValueError(f'Level {level} is not allowed!')
+    self.actions = {
+      'help'    : print_help,
+      'fight'   : self.battle,
+      'look'    : self.look_around,
+      'move'    : self.move,
+      'open'    : self.open,
+      'check'   : self.check,
+      'use'     : self.use_item,
+      'save'    : self.save_game,
+      'options' : set_options,
+      'quit'    : quit_game
+    }
+    while True:
+      level = slow_input(f'Player starting level [{list(level_to_xp_map.keys())[0]} - {list(level_to_xp_map.keys())[-1]}]: ')
+      try:
+        level = int(level)
+      except:
+        slow_print(f'Level {level} is not allowed!')
+        continue
+      if level in level_to_xp_map:
+        self.level = level
+        break
+      else:
+        slow_print(f'Level {level} is not allowed!')
+        continue
     player_class = slow_input('Player class [(f)ighter or (m)age]: ')
     player_class = 'fighter' if player_class == 'f' else player_class
     player_class = 'mage' if player_class == 'm' else player_class
@@ -91,20 +132,23 @@ class Player:
     self.map = None
 
   def battle(self, labyrinth):
-    slow_print(f'You face {len(labyrinth.map[self.location].monsters)} monster(s)!')
-    for i, monster in enumerate(labyrinth.map[self.location].monsters):
-      slow_print(f' - {monster.name} ({i+1})')
-    while labyrinth.map[self.location].monsters:
-      turn_order = sorted([self] + labyrinth.map[self.location].monsters, key=lambda x: x.speed)[::-1]
-      for entity in turn_order:
-        if entity.hp > 0:
-          if isinstance(entity, Monster):
-            entity.attack(self)
-          else:
-            if self.battle_action(labyrinth, labyrinth.map[self.location].monsters) == 'escaped':
-              self.check_level_up()
-              return
-    self.check_level_up()
+    if labyrinth.map[self.location].monsters:
+      slow_print(f'You face {len(labyrinth.map[self.location].monsters)} monster(s)!')
+      for i, monster in enumerate(labyrinth.map[self.location].monsters):
+        slow_print(f' - {monster.name} ({i+1})')
+      while labyrinth.map[self.location].monsters:
+        turn_order = sorted([self] + labyrinth.map[self.location].monsters, key=lambda x: x.speed)[::-1]
+        for entity in turn_order:
+          if entity.hp > 0:
+            if isinstance(entity, Monster):
+              entity.attack(self)
+            else:
+              if self.battle_action(labyrinth, labyrinth.map[self.location].monsters) == 'escaped':
+                self.check_level_up()
+                return
+      self.check_level_up()
+    else:
+      slow_print('There are no monsters to fight...')
 
   def action(self, labyrinth):
     if self.map is None:
@@ -119,50 +163,16 @@ class Player:
         self.map[self.location] = 'C'
     elif isinstance(room, MerchantRoom):
       self.map[self.location] = 'M'
-    choice = slow_input(f'What would you like to do next? [{", ".join(allowable_actions)}]: ')
-    if (choice == 'fight') or (choice == 'f'):
-      if room.monsters:
-        self.battle(labyrinth)
-      else:
-        slow_print('There are no monsters to fight...')
-    elif (choice == 'look') or (choice == 'l'):
-      self.look_around(labyrinth)
-    elif (choice == 'move') or (choice == 'm'):
-      if not room.monsters:
-        try:
-          self.move(labyrinth)
-        except MovementError:
-          slow_print("You can't go that way!")
-          self.action(labyrinth)
-      else:
-        slow_print('You cannot move because the monsters block your path!')
-        escape = slow_input('Would you like to attempt to escape? [y/n]')
-        if escape == 'y':
-          if self.escape_check(room.monsters):
-            slow_print('You escaped!')
-            self.move(labyrinth)
-          else:
-            slow_print('You could not escape!')
-            self.battle(labyrinth)
-    elif (choice == 'open') or (choice == 'o'):
-      self.open(room)
-    elif (choice == 'check') or (choice == 'c'):
-      self.check()
-    elif (choice == 'use') or (choice == 'u'):
-      self.use_item()
-    elif (choice == 'save') or (choice == 's'):
-      save_game(self, labyrinth)
-    elif (choice == 'options') or (choice == 'p'):
-      print_settings()
-      set_options()
-    elif (choice == 'quit') or (choice == 'q'):
-      slow_print('See you next time!')
-      exit()
+    choice = slow_input(f'What would you like to do next? [(h) for help]: ')
+    choice = action_shorthand_map[choice] if choice in action_shorthand_map else choice
+    if choice in self.actions:
+      self.actions[choice](labyrinth)
     else:
       slow_print(f'Unrecognized action {choice}! Please try again.')
       self.action(labyrinth)
 
-  def open(self, room):
+  def open(self, labyrinth):
+    room = labyrinth.map[self.location]
     if not room.monsters:
       if room.treasure:
         slow_print(f'There are {len(room.treasure)} chest(s) in the room. You start opening...')
@@ -186,7 +196,7 @@ class Player:
       if choice == 'y':
         self.shop(room)
 
-  def use_item(self):
+  def use_item(self, *args):
     if self.inventory:
       slow_print('Which item would you like to use? ')
       for i, (item, quantity) in enumerate(self.inventory.items()):
@@ -210,6 +220,25 @@ class Player:
       slow_print('Your bag is empty!')
 
   def move(self, labyrinth):
+    room = labyrinth.map[self.location]
+    if not room.monsters:
+      try:
+        self.change_room(labyrinth)
+      except MovementError:
+        slow_print("You can't go that way!")
+        self.action(labyrinth)
+    else:
+      slow_print('You cannot move because the monsters block your path!')
+      escape = slow_input('Would you like to attempt to escape? [y/n]')
+      if escape == 'y':
+        if self.escape_check(room.monsters):
+          slow_print('You escaped!')
+          self.change_room(labyrinth)
+        else:
+          slow_print('You could not escape!')
+          self.battle(labyrinth)
+
+  def change_room(self, labyrinth):
     slow_print('The following doors are available:')
     for door in labyrinth.map[self.location].doors:
       print(f'   - a door to the ({door[0]}){door[1:]}')
@@ -250,7 +279,7 @@ class Player:
     else:
       return 0
 
-  def check(self):
+  def check(self, *args):
     slow_print(f'You have {self.gold} gold and {self.experience_points} experience (level {self.level})!')
     slow_print(f'Your current hit points are {self.hp}/{self.max_hp}.')
     if self.inventory:
@@ -318,7 +347,7 @@ class Player:
     elif (battle_action == 'run') or (battle_action == 'r'):
       if self.escape_check(monsters):
         slow_print('You escaped!')
-        self.move(labyrinth)
+        self.change_room(labyrinth)
         return 'escaped'
       else:
         slow_print("You failed to escape!")
@@ -338,3 +367,6 @@ class Player:
         self.hp = level_to_hp_map[self.player_class]
         self.level += 1
         slow_print(f'You leveled up to level {self.level}!')
+
+  def save_game(self, labyrinth):
+    save_game(self, labyrinth)
