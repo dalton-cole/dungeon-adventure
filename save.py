@@ -10,6 +10,6 @@ def load_data(file_path):
   with open(file_path, 'rb') as f:
     return load(f)
 
-def save_data(player, labyrinth, file_path):
+def save_data(save_list, file_path):
   with open(file_path, 'wb') as f:
-    dump([player, labyrinth], f)
+    dump(save_list, f)

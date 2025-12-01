@@ -8,9 +8,9 @@ class Monster:
   def attack(self, player):
     if random() < self.accuracy:
       damage = randint(self.damage_lower, self.damage_upper)
-      player.hp -= damage
+      player.hp = max(0, player.hp - damage)
       slow_print(f'{self.name} does {damage} damage! Your remaining hit points are {player.hp}/{player.max_hp}!')
-      if player.hp < 0:
+      if player.hp <= 0:
         slow_print('Your HP is depleted...Game Over!')
         exit()
     else:

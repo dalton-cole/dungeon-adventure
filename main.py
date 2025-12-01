@@ -2,7 +2,7 @@
 
 from os.path import exists, join as pjoin
 from save import load_data, save_path
-from print import slow_print, slow_input
+from print import slow_print, slow_input, set_options_from_dict
 from player import Player
 from dungeon import Labyrinth
 
@@ -25,7 +25,8 @@ if __name__ == '__main__':
       slot = slow_input('Please enter the save slot number:', int)
       p = pjoin(save_path, f'{slot}.pkl')
       if exists(p):
-        the_player, the_labyrinth = load_data(p)
+        the_player, the_labyrinth, saved_options = load_data(p)
+        set_options_from_dict(saved_options)
         break
       else:
         slow_print(f'Save slot {slot} does not exist!')

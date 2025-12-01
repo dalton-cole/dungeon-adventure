@@ -3,7 +3,7 @@
 from os.path import exists, join as pjoin
 from save import save_data, save_path
 from random import random, randint
-from print import slow_print, slow_input
+from print import slow_print, slow_input, options, print_settings, set_options
 from numpy import full
 from copy import deepcopy
 from collections import defaultdict
@@ -52,7 +52,7 @@ level_to_damage = {
   }
 }
 
-allowable_actions = ['(f)ight', '(l)ook/ta(l)k', '(m)ove', '(o)pen', '(c)heck', '(u)se', '(s)ave', '(q)uit']
+allowable_actions = ['(f)ight', '(l)ook/ta(l)k', '(m)ove', '(o)pen', '(c)heck', '(u)se', '(s)ave', 'o(p)tions', '(q)uit']
 allowable_battle_actions = ['(a)ttack', '(i)tem', '(r)un']
 
 class MovementError(Exception):
@@ -153,6 +153,9 @@ class Player:
       self.use_item()
     elif (choice == 'save') or (choice == 's'):
       self.save_game(labyrinth)
+    elif (choice == 'options') or (choice == 'p'):
+      print_settings()
+      set_options()
     elif (choice == 'quit') or (choice == 'q'):
       slow_print('See you next time!')
       exit()
@@ -269,7 +272,6 @@ class Player:
     slow_print('The following items are available:')
     for i, (item, price) in enumerate(room.items.items()):
       slow_print(f'- {item} ({i+1}) ({price} g)')
-    choice = ''
     while True:
       choice = slow_input('Which would you like to buy? (# or (l)eave)')
       choice = 'leave' if choice == 'l' else choice
@@ -305,7 +307,7 @@ class Player:
       damage = self.attack()
       if damage > 0:
         slow_print(f'You inflict {damage} damage on {monsters[idx-1].name}!')
-        monsters[idx-1].hp -= damage
+        monsters[idx-1].hp = max(0, monsters[idx-1].hp - damage)
       else:
         slow_print('Oh no! You missed...')
       if monsters[idx-1].hp <= 0:
@@ -344,9 +346,9 @@ class Player:
     if exists(p):
       choice = slow_input(f'Save slot {slot} already exists! Would you like to overwrite? [y/n]')
       if choice == 'y':
-        save_data(self, labyrinth, p)
+        save_data([self, labyrinth, options], p)
       else:
         return
     else:
-      save_data(self, labyrinth, p)
+      save_data([self, labyrinth, options], p)
     slow_print(f'Game successfully saved to slot {slot}!')
