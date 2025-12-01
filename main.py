@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from os.path import exists, join as pjoin
-from save import load_data, save_path
+from save import load_data, save_path, print_existing_save_files
 from print import slow_print, slow_input, set_options_from_dict
 from player import Player
 from dungeon import Labyrinth
@@ -22,6 +22,7 @@ if __name__ == '__main__':
       the_player = Player(the_labyrinth.start_location)
       break
     elif (choice == 'load') or (choice == 'l'):
+      print_existing_save_files()
       slot = slow_input('Please enter the save slot number:', int)
       p = pjoin(save_path, f'{slot}.pkl')
       if exists(p):

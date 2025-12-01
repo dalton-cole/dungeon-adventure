@@ -1,10 +1,43 @@
 #!/usr/bin/env python3
 
-from os.path import dirname, join as pjoin
+from os import listdir
+from os.path import dirname, exists, join as pjoin
 from pickle import load, dump
+from print import slow_input, slow_print, options
 
 
 save_path = pjoin(dirname(__file__), '.saves')
+
+def print_existing_save_files():
+  slow_print('The following files are present:')
+  for save_file in listdir(pjoin(save_path)):
+    slow_print(f' - {save_file.split('.')[0]}')
+
+def save_game(player, labyrinth):
+  while True:
+    print_existing_save_files()
+    slot = slow_input('What save slot should the game be saved to? [# or (c)ancel]')
+    slot = 'cancel' if slot == 'c' else slot
+    if slot == 'cancel':
+      return
+    try:
+      slot = int(slot)
+    except:
+      slow_print('Cannot save to a non-numeric slot!')
+      continue
+    p = pjoin(save_path, f'{slot}.pkl')
+    if exists(p):
+      choice = slow_input(f'Save slot {slot} already exists! Would you like to overwrite? [y/n]')
+      if choice == 'y':
+        save_data([player, labyrinth, options], p)
+        break
+      else:
+        slow_print('Game not saved...')
+        return
+    else:
+      save_data([player, labyrinth, options], p)
+      break
+  slow_print(f'Game successfully saved to slot {slot}!')
 
 def load_data(file_path):
   with open(file_path, 'rb') as f:

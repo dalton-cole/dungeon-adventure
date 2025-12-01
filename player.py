@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-from os.path import exists, join as pjoin
-from save import save_data, save_path
 from random import random, randint
-from print import slow_print, slow_input, options, print_settings, set_options
+from print import slow_print, slow_input, print_settings, set_options
+from save import save_game
 from numpy import full
 from copy import deepcopy
 from collections import defaultdict
@@ -152,7 +151,7 @@ class Player:
     elif (choice == 'use') or (choice == 'u'):
       self.use_item()
     elif (choice == 'save') or (choice == 's'):
-      self.save_game(labyrinth)
+      save_game(self, labyrinth)
     elif (choice == 'options') or (choice == 'p'):
       print_settings()
       set_options()
@@ -339,16 +338,3 @@ class Player:
         self.hp = level_to_hp_map[self.player_class]
         self.level += 1
         slow_print(f'You leveled up to level {self.level}!')
-
-  def save_game(self, labyrinth):
-    slot = slow_input('What save slot should the game be saved to?', int)
-    p = pjoin(save_path, f'{slot}.pkl')
-    if exists(p):
-      choice = slow_input(f'Save slot {slot} already exists! Would you like to overwrite? [y/n]')
-      if choice == 'y':
-        save_data([self, labyrinth, options], p)
-      else:
-        return
-    else:
-      save_data([self, labyrinth, options], p)
-    slow_print(f'Game successfully saved to slot {slot}!')
