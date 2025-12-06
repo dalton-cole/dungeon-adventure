@@ -8,10 +8,13 @@ from print import slow_input, slow_print, options
 
 save_path = pjoin(dirname(__file__), '.saves')
 
+def get_existing_save_files():
+  return [int(f.split('.')[0]) for f in listdir(save_path) if f.endswith('.pkl')]
+
 def print_existing_save_files():
   slow_print('The following files are present:')
-  for save_file in listdir(pjoin(save_path)):
-    slow_print(f' - {save_file.split('.')[0]}')
+  for save_file in get_existing_save_files():
+    slow_print(f' - {save_file}')
 
 def save_game(player, labyrinth):
   while True:

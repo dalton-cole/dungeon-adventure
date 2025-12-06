@@ -56,20 +56,23 @@ class MerchantRoom(Room):
 
 class Labyrinth:
   def __init__(self, size):
-    self.map = empty((size, size), dtype=Room)
-    for i in range(self.map.shape[0]):
-      for j in range(self.map.shape[1]):
-        doors = []
-        if i > 0:
-          doors.append('north')
-        if i+1 < self.map.shape[0]:
-          doors.append('south')
-        if j > 0:
-          doors.append('west')
-        if j+1 < self.map.shape[1]:
-          doors.append('east')
-        if random() < 0.15:
-          self.map[i,j] = MerchantRoom(doors)
-        else:
-          self.map[i,j] = NormalRoom(doors)
+    while True:
+      self.map = empty((size, size), dtype=Room)
+      for i in range(self.map.shape[0]):
+        for j in range(self.map.shape[1]):
+          doors = []
+          if i > 0:
+            doors.append('north')
+          if i+1 < self.map.shape[0]:
+            doors.append('south')
+          if j > 0:
+            doors.append('west')
+          if j+1 < self.map.shape[1]:
+            doors.append('east')
+          if random() < 0.1:
+            self.map[i,j] = MerchantRoom(doors)
+          else:
+            self.map[i,j] = NormalRoom(doors)
+      if any([room.monsters for room in self.map.ravel()]) and any([isinstance(room, MerchantRoom) for room in self.map.ravel()]):
+        break
     self.start_location = (randint(0, size-1), randint(0, size-1))
