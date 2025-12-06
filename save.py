@@ -16,8 +16,7 @@ def print_existing_save_files():
 def save_game(player, labyrinth):
   while True:
     print_existing_save_files()
-    slot = slow_input('What save slot should the game be saved to? [# or (c)ancel]')
-    slot = 'cancel' if slot == 'c' else slot
+    slot = slow_input('What save slot should the game be saved to? [# or (c)ancel]', shorthand_map={'c' : 'cancel'})
     if slot == 'cancel':
       return
     try:

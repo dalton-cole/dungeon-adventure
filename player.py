@@ -10,7 +10,6 @@ from monsters import Monster
 from dungeon import NormalRoom, MerchantRoom
 
 
-allowable_classes = ['fighter', 'mage']
 level_to_xp_map = {
   1: 0,
   2: 100,
@@ -64,7 +63,27 @@ action_shorthand_map = {
   'p' : 'options',
   'q' : 'quit'
 }
-allowable_battle_actions = ['(a)ttack', '(i)tem', '(r)un']
+
+allowable_classes = ['fighter', 'mage']
+class_shorthand_map = {
+  'f' : 'fighter',
+  'm' : 'mage'
+}
+
+allowable_battle_actions = ['attack', 'item', 'run']
+battle_action_shorthand_map = {
+  'a' : 'attack',
+  'i' : 'item',
+  'r' : 'run'
+}
+
+allowable_movement_directions = ['north', 'south', 'east', 'west']
+movement_shorthand_map = {
+  'n' : 'north',
+  's' : 'south',
+  'e' : 'east',
+  'w' : 'west'
+}
 
 def quit_game(*args):
   slow_print('See you next time!')
@@ -98,6 +117,11 @@ class Player:
       'options' : set_options,
       'quit'    : quit_game
     }
+    self.battle_actions = {
+      'attack' : self.attack_monster,
+      'item'   : self.use_item,
+      'run'    : self.run
+    }
     while True:
       level = slow_input(f'Player starting level [{list(level_to_xp_map.keys())[0]} - {list(level_to_xp_map.keys())[-1]}]: ')
       try:
@@ -111,22 +135,16 @@ class Player:
       else:
         slow_print(f'Level {level} is not allowed!')
         continue
-    player_class = slow_input('Player class [(f)ighter or (m)age]: ')
-    player_class = 'fighter' if player_class == 'f' else player_class
-    player_class = 'mage' if player_class == 'm' else player_class
-    if player_class in allowable_classes:
-      self.player_class = player_class
-      self.hp = level_to_hp_map[self.player_class][self.level]
-      self.max_hp = level_to_hp_map[self.player_class][self.level]
-      if self.player_class == 'fighter':
-        self.accuracy = 0.9
-        self.speed = 0.75
-      elif self.player_class == 'mage':
-        self.accuracy = 0.7
-        self.speed = 0.5
-      self.damage_lower, self.damage_upper = level_to_damage[self.player_class][self.level]
-    else:
-      raise ValueError(f'Player class {player_class} not recognized!')
+    self.player_class = slow_input('Player class [(f)ighter or (m)age]: ', shorthand_map=class_shorthand_map, allowable_inputs=allowable_classes)
+    self.hp = level_to_hp_map[self.player_class][self.level]
+    self.max_hp = level_to_hp_map[self.player_class][self.level]
+    if self.player_class == 'fighter':
+      self.accuracy = 0.9
+      self.speed = 0.75
+    elif self.player_class == 'mage':
+      self.accuracy = 0.7
+      self.speed = 0.5
+    self.damage_lower, self.damage_upper = level_to_damage[self.player_class][self.level]
     self.experience_points = level_to_xp_map[self.level]
     self.location = start_location
     self.map = None
@@ -134,8 +152,8 @@ class Player:
   def battle(self, labyrinth):
     if labyrinth.map[self.location].monsters:
       slow_print(f'You face {len(labyrinth.map[self.location].monsters)} monster(s)!')
-      for i, monster in enumerate(labyrinth.map[self.location].monsters):
-        slow_print(f' - {monster.name} ({i+1})')
+      for monster in labyrinth.map[self.location].monsters:
+        slow_print(f' - {monster.name}')
       while labyrinth.map[self.location].monsters:
         turn_order = sorted([self] + labyrinth.map[self.location].monsters, key=lambda x: x.speed)[::-1]
         for entity in turn_order:
@@ -143,7 +161,7 @@ class Player:
             if isinstance(entity, Monster):
               entity.attack(self)
             else:
-              if self.battle_action(labyrinth, labyrinth.map[self.location].monsters) == 'escaped':
+              if self.battle_actions[slow_input(f'What would you like to do? [(a)ttack, (i)tem, (r)un]: ', shorthand_map=battle_action_shorthand_map, allowable_inputs=allowable_battle_actions)](labyrinth, labyrinth.map[self.location].monsters) == 'escaped':
                 self.check_level_up()
                 return
       self.check_level_up()
@@ -163,13 +181,7 @@ class Player:
         self.map[self.location] = 'C'
     elif isinstance(room, MerchantRoom):
       self.map[self.location] = 'M'
-    choice = slow_input(f'What would you like to do next? [(h) for help]: ')
-    choice = action_shorthand_map[choice] if choice in action_shorthand_map else choice
-    if choice in self.actions:
-      self.actions[choice](labyrinth)
-    else:
-      slow_print(f'Unrecognized action {choice}! Please try again.')
-      self.action(labyrinth)
+    self.actions[slow_input(f'What would you like to do next? [(h)elp]: ', shorthand_map=action_shorthand_map, allowable_inputs=self.actions.keys())](labyrinth)
 
   def open(self, labyrinth):
     room = labyrinth.map[self.location]
@@ -192,7 +204,7 @@ class Player:
     room = labyrinth.map[self.location]
     room.describe()
     if isinstance(room, MerchantRoom):
-      choice = slow_input('Would you like to talk to the merchant? [y/n]')
+      choice = slow_input('Would you like to talk to the merchant? [y/n]', allowable_inputs=['y', 'n'])
       if choice == 'y':
         self.shop(room)
 
@@ -200,8 +212,8 @@ class Player:
     if self.inventory:
       slow_print('Which item would you like to use? ')
       for i, (item, quantity) in enumerate(self.inventory.items()):
-        slow_print(f' - {item} (Amount: {quantity}) ({i+1})')
-      idx = slow_input('', int)
+        slow_print(f' - [{i+1}] : {item} (Amount: {quantity})')
+      idx = slow_input('', int, allowable_inputs=list(range(1, len(self.inventory)+1)))
       if list(self.inventory.keys())[idx-1] == 'health potion':
         if self.hp < self.max_hp:
           new_hp = min(self.max_hp, self.hp+8)
@@ -229,7 +241,7 @@ class Player:
         self.action(labyrinth)
     else:
       slow_print('You cannot move because the monsters block your path!')
-      escape = slow_input('Would you like to attempt to escape? [y/n]')
+      escape = slow_input('Would you like to attempt to escape? [y/n]', allowable_inputs=['y', 'n'])
       if escape == 'y':
         if self.escape_check(room.monsters):
           slow_print('You escaped!')
@@ -243,33 +255,31 @@ class Player:
     for door in labyrinth.map[self.location].doors:
       print(f'   - a door to the ({door[0]}){door[1:]}')
     loc = list(self.location)
-    direction = slow_input("What direction do you go? ")
-    if (direction == 'south') or (direction == 's'):
+    direction = slow_input("What direction do you go? ", shorthand_map=movement_shorthand_map, allowable_inputs=allowable_movement_directions)
+    if direction == 'south':
       if self.location[0]+1 < labyrinth.map.shape[0]:
         loc[0] += 1
         slow_print(f'You head south and enter the next room...')
       else:
         raise MovementError("Cannot move south!")
-    elif (direction == 'west') or (direction == 'w'):
+    elif direction == 'west':
       if self.location[1] > 0:
         loc[1] -= 1
         slow_print(f'You head west and enter the next room...')
       else:
         raise MovementError("Cannot move west!")
-    elif (direction == 'east') or (direction == 'e'):
+    elif direction == 'east':
       if self.location[1]+1 < labyrinth.map.shape[1]:
         loc[1] += 1
         slow_print(f'You head east and enter the next room...')
       else:
         raise MovementError("Cannot move east!")
-    elif (direction == 'north') or (direction == 'n'):
+    elif direction == 'north':
       if self.location[0] > 0:
         loc[0] -= 1
         slow_print(f'You head north and enter the next room...')
       else:
         raise MovementError("Cannot move north!")
-    else:
-      raise MovementError(f"Direction {direction} is not recognized!")
     self.location = tuple(loc)
     labyrinth.map[self.location].describe()
 
@@ -299,10 +309,9 @@ class Player:
     slow_print('You approach the merchant and inspect his wares...')
     slow_print('The following items are available:')
     for i, (item, price) in enumerate(room.items.items()):
-      slow_print(f'- {item} ({i+1}) ({price} g)')
+      slow_print(f' - [{i+1}] : {item} ({price} g)')
     while True:
-      choice = slow_input('Which would you like to buy? (# or (l)eave)')
-      choice = 'leave' if choice == 'l' else choice
+      choice = slow_input('Which would you like to buy? (# or (l)eave)', shorthand_map={'l' : 'leave'})
       if choice != 'leave':
         try:
           choice = int(choice)-1
@@ -324,37 +333,30 @@ class Player:
         break
     print('The merchant nods and returns to his business.')
 
-  def battle_action(self, labyrinth, monsters):
-    battle_action = slow_input(f'What would you like to do? [{", ".join(allowable_battle_actions)}]: ')
-    if (battle_action == 'attack') or (battle_action == 'a'):
-      slow_print('Which monster do you attack? ')
-      for i, monster in enumerate(monsters):
-        if monster.hp > 0:
-          slow_print(f' - {monster.name} ({i+1})')
-      idx = slow_input('', int)
-      damage = self.attack()
-      if damage > 0:
-        slow_print(f'You inflict {damage} damage on {monsters[idx-1].name}!')
-        monsters[idx-1].hp = max(0, monsters[idx-1].hp - damage)
-      else:
-        slow_print('Oh no! You missed...')
-      if monsters[idx-1].hp <= 0:
-        slow_print(f'{monsters[idx-1].name} has died!')
-        self.experience_points += monsters[idx-1].xp_worth
-        monsters.pop(idx-1)
-    elif (battle_action == 'item') or (battle_action == 'i'):
-      self.use_item()
-    elif (battle_action == 'run') or (battle_action == 'r'):
-      if self.escape_check(monsters):
-        slow_print('You escaped!')
-        self.change_room(labyrinth)
-        return 'escaped'
-      else:
-        slow_print("You failed to escape!")
-        self.battle_action(labyrinth, monsters)
+  def attack_monster(self, labyrinth, monsters):
+    slow_print('Which monster do you attack? ')
+    for i, monster in enumerate(monsters):
+      if monster.hp > 0:
+        slow_print(f' - [{i+1}] : {monster.name}')
+    idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
+    damage = self.attack()
+    if damage > 0:
+      slow_print(f'You inflict {damage} damage on {monsters[idx-1].name}!')
+      monsters[idx-1].hp = max(0, monsters[idx-1].hp - damage)
     else:
-      slow_print('Unknown action!')
-      self.battle_action(labyrinth, monsters)
+      slow_print('Oh no! You missed...')
+    if monsters[idx-1].hp <= 0:
+      slow_print(f'{monsters[idx-1].name} has died!')
+      self.experience_points += monsters[idx-1].xp_worth
+      monsters.pop(idx-1)
+
+  def run(self, labyrinth, monsters):
+    if self.escape_check(monsters):
+      slow_print('You escaped!')
+      self.change_room(labyrinth)
+      return 'escaped'
+    else:
+      slow_print("You failed to escape!")
 
   def escape_check(self, monsters):
     avg_monster_accuracy = sum(monster.accuracy * monster.speed for monster in monsters) / len(monsters)

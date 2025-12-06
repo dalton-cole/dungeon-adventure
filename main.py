@@ -16,12 +16,12 @@ def game_loop(player, labyrinth):
 
 if __name__ == '__main__':
   while True:
-    choice = slow_input('Would you like to start a (n)ew game or (l)oad a saved game?')
-    if (choice == 'new game') or (choice == 'n'):
+    choice = slow_input('Would you like to start a (n)ew game or (l)oad a saved game?', shorthand_map={'n' : 'new game', 'l' : 'load'}, allowable_inputs=['new game', 'load'])
+    if choice == 'new game':
       the_labyrinth = Labyrinth(slow_input('What size of labyrinth would you like?', int))
       the_player = Player(the_labyrinth.start_location)
       break
-    elif (choice == 'load') or (choice == 'l'):
+    elif choice == 'load':
       print_existing_save_files()
       slot = slow_input('Please enter the save slot number:', int)
       p = pjoin(save_path, f'{slot}.pkl')
@@ -31,7 +31,5 @@ if __name__ == '__main__':
         break
       else:
         slow_print(f'Save slot {slot} does not exist!')
-    else:
-      slow_print('Unrecognized command!')
 
   game_loop(the_player, the_labyrinth)

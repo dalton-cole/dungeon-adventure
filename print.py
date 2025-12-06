@@ -25,9 +25,8 @@ def set_options(*args):
     slow_print('Which option would you like to change? [# or (d)one]')
     slow_print('You can change the following options:')
     for i, k in enumerate([options]):
-      slow_print(f' - {k} ({i+1})')
-    choice = slow_input('')
-    choice = 'done' if choice == 'd' else choice
+      slow_print(f' - [{i+1}] : {k}')
+    choice = slow_input('', shorthand_map={'d' : 'done'})
     if choice != 'done':
       try:
         choice = int(choice)-1
@@ -62,6 +61,15 @@ def slow_print(msg):
     print(msg[:i+1], end='\r' if i+1 < len(msg) else '\n')
     sleep(options['text delay'])
 
-def slow_input(msg, fn=str):
-  slow_print(msg)
-  return fn(input('').lower().strip())
+def slow_input(msg, fn=str, shorthand_map={}, allowable_inputs=[]):
+  while True:
+    slow_print(msg)
+    inp = fn(input('').lower().strip())
+    if shorthand_map:
+      inp = shorthand_map[inp] if inp in shorthand_map else inp
+    if allowable_inputs:
+      if inp not in allowable_inputs:
+        slow_print(f'Input "{inp}" is not allowed! Try again...')
+        continue
+    break
+  return inp
