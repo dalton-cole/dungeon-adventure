@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from random import random, randint
+from random import randint
 from print import slow_print, slow_input, set_options
 from save import save_game
 from numpy import full
@@ -8,14 +8,17 @@ from copy import deepcopy
 from collections import defaultdict
 from monsters import Monster
 from dungeon import NormalRoom, MerchantRoom
+from weapons import MeleeWeapon, StarShard
+from spells import AttackSpell, SolarFlare
+from items import Item
 
 
 level_to_xp_map = {
   1: 0,
   2: 100,
-  3: 1000,
-  4: 10000,
-  5: 100000
+  3: 300,
+  4: 700,
+  5: 1400
 }
 level_to_hp_map = {
   'fighter' : {
@@ -49,8 +52,10 @@ level_to_damage = {
     5: (22, 32)
   }
 }
+attribute_points_per_level = 4
+health_per_con_point = 3
 
-allowable_actions = ['(f)ight', '(l)ook/ta(l)k', '(m)ove', '(o)pen', '(c)heck', '(u)se', '(s)ave', 'o(p)tions', '(q)uit']
+allowable_actions = ['(f)ight', '(l)ook/ta(l)k', '(m)ove', '(o)pen', '(c)heck', '(u)se', '(a)ssign', '(s)ave', 'o(p)tions', '(q)uit']
 action_shorthand_map = {
   'h' : 'help',
   'f' : 'fight',
@@ -59,15 +64,10 @@ action_shorthand_map = {
   'o' : 'open',
   'c' : 'check',
   'u' : 'use',
+  'a' : 'assign',
   's' : 'save',
   'p' : 'options',
   'q' : 'quit'
-}
-
-allowable_classes = ['fighter', 'mage']
-class_shorthand_map = {
-  'f' : 'fighter',
-  'm' : 'mage'
 }
 
 allowable_battle_actions = ['attack', 'item', 'run']
@@ -105,6 +105,8 @@ class Player:
   def __init__(self, start_location):
     self.gold = 0
     self.inventory = defaultdict(int)
+    self.weapons = set()
+    self.spells = set()
     self.actions = {
       'help'    : print_help,
       'fight'   : self.battle,
@@ -113,55 +115,51 @@ class Player:
       'open'    : self.open,
       'check'   : self.check,
       'use'     : self.use_item,
+      'assign'  : self.assign_attribute_points,
       'save'    : self.save_game,
       'options' : set_options,
       'quit'    : quit_game
     }
     self.battle_actions = {
-      'attack' : self.attack_monster,
+      'attack' : self.attack_action,
       'item'   : self.use_item,
       'run'    : self.run
     }
-    while True:
-      level = slow_input(f'Player starting level [{list(level_to_xp_map.keys())[0]} - {list(level_to_xp_map.keys())[-1]}]: ')
-      try:
-        level = int(level)
-      except:
-        slow_print(f'Level {level} is not allowed!')
-        continue
-      if level in level_to_xp_map:
-        self.level = level
-        break
-      else:
-        slow_print(f'Level {level} is not allowed!')
-        continue
-    self.player_class = slow_input('Player class [(f)ighter or (m)age]: ', shorthand_map=class_shorthand_map, allowable_inputs=allowable_classes)
-    self.hp = level_to_hp_map[self.player_class][self.level]
-    self.max_hp = level_to_hp_map[self.player_class][self.level]
-    if self.player_class == 'fighter':
-      self.accuracy = 0.9
-      self.speed = 0.75
-    elif self.player_class == 'mage':
-      self.accuracy = 0.7
-      self.speed = 0.5
-    self.damage_lower, self.damage_upper = level_to_damage[self.player_class][self.level]
+    self.attributes = {
+      'STR' : 10,
+      'INT' : 10,
+      'CON' : 10,
+      'DEX' : 10
+    }
+    self.level = slow_input(
+      f'Player starting level [{list(level_to_xp_map.keys())[0]} - {list(level_to_xp_map.keys())[-1]}]:',
+      int,
+      allowable_inputs=list(range(list(level_to_xp_map.keys())[0], list(level_to_xp_map.keys())[-1]+1))
+    )
     self.experience_points = level_to_xp_map[self.level]
     self.location = start_location
     self.map = None
+    self.attribute_points = attribute_points_per_level * (self.level - 1)
 
   def battle(self, labyrinth):
-    if labyrinth.map[self.location].monsters:
-      slow_print(f'You face {len(labyrinth.map[self.location].monsters)} monster(s)!')
-      for monster in labyrinth.map[self.location].monsters:
-        slow_print(f' - {monster.name}')
-      while labyrinth.map[self.location].monsters:
-        turn_order = sorted([self] + labyrinth.map[self.location].monsters, key=lambda x: x.speed)[::-1]
+    if labyrinth.map[tuple(self.location)].monsters:
+      slow_print(f'You face {len(labyrinth.map[tuple(self.location)].monsters)} monster(s)!')
+      for monster in labyrinth.map[tuple(self.location)].monsters:
+        slow_print(f' - {monster.name} ({monster.hp}/{monster.max_hp} HP)')
+      while labyrinth.map[tuple(self.location)].monsters:
+        turn_order = sorted([self] + labyrinth.map[tuple(self.location)].monsters, key=lambda x: x.roll_initiative())[::-1]
         for entity in turn_order:
           if entity.hp > 0:
             if isinstance(entity, Monster):
               entity.attack(self)
             else:
-              if self.battle_actions[slow_input(f'What would you like to do? [(a)ttack, (i)tem, (r)un]: ', shorthand_map=battle_action_shorthand_map, allowable_inputs=allowable_battle_actions)](labyrinth, labyrinth.map[self.location].monsters) == 'escaped':
+              if self.battle_actions[
+                slow_input(
+                  f'What would you like to do? [(a)ttack, (i)tem, (r)un]:',
+                  shorthand_map=battle_action_shorthand_map,
+                  allowable_inputs=allowable_battle_actions
+                )
+              ](labyrinth, labyrinth.map[tuple(self.location)].monsters) == 'escaped':
                 self.check_level_up()
                 return
       self.check_level_up()
@@ -171,20 +169,26 @@ class Player:
   def action(self, labyrinth):
     if self.map is None:
       self.map = full(labyrinth.map.shape, '?')
-    room = labyrinth.map[self.location]
+    room = labyrinth.map[tuple(self.location)]
     if isinstance(room, NormalRoom):
       if (not room.monsters) and (not room.treasure):
-        self.map[self.location] = 'X'
+        self.map[tuple(self.location)] = 'X'
       elif room.monsters:
-        self.map[self.location] = 'D'
+        self.map[tuple(self.location)] = 'D'
       elif room.treasure:
-        self.map[self.location] = 'C'
+        self.map[tuple(self.location)] = 'C'
     elif isinstance(room, MerchantRoom):
-      self.map[self.location] = 'M'
-    self.actions[slow_input(f'What would you like to do next? [(h)elp]: ', shorthand_map=action_shorthand_map, allowable_inputs=self.actions.keys())](labyrinth)
+      self.map[tuple(self.location)] = 'M'
+    self.actions[
+      slow_input(
+        f'What would you like to do next? [(h)elp]: ',
+        shorthand_map=action_shorthand_map,
+        allowable_inputs=self.actions.keys()
+      )
+    ](labyrinth)
 
   def open(self, labyrinth):
-    room = labyrinth.map[self.location]
+    room = labyrinth.map[tuple(self.location)]
     if not room.monsters:
       if room.treasure:
         slow_print(f'There are {len(room.treasure)} chest(s) in the room. You start opening...')
@@ -192,7 +196,7 @@ class Player:
           chest = room.treasure.pop(0)
           slow_print(f'You open a chest and find {chest.gold} gold!')
           if chest.item:
-            slow_print(f'You also find {chest.item} inside!')
+            slow_print(f'You also find {chest.item.name} inside!')
             self.inventory[chest.item] += 1
           self.gold += chest.gold
       else:
@@ -201,7 +205,7 @@ class Player:
       slow_print('You cannot open chests because the monsters are in the way!')
 
   def look_around(self, labyrinth):
-    room = labyrinth.map[self.location]
+    room = labyrinth.map[tuple(self.location)]
     room.describe()
     if isinstance(room, MerchantRoom):
       choice = slow_input('Would you like to talk to the merchant? [y/n]', allowable_inputs=['y', 'n'])
@@ -212,27 +216,26 @@ class Player:
     if self.inventory:
       slow_print('Which item would you like to use? ')
       for i, (item, quantity) in enumerate(self.inventory.items()):
-        slow_print(f' - [{i+1}] : {item} (Amount: {quantity})')
+        slow_print(f' - [{i+1}] : {item.name} (Amount: {quantity})')
       idx = slow_input('', int, allowable_inputs=list(range(1, len(self.inventory)+1)))
-      if list(self.inventory.keys())[idx-1] == 'health potion':
-        if self.hp < self.max_hp:
-          new_hp = min(self.max_hp, self.hp+8)
-          slow_print(f'You heal {new_hp - self.hp} hp!')
-          self.hp = new_hp
-          slow_print(f'Current hp: {self.hp}')
-          if self.inventory['health potion'] == 1:
-            self.inventory.pop('health potion')
-          else:
-            self.inventory['health potion'] -= 1
+      if isinstance(list(self.inventory.keys())[idx-1], Item):
+        item = list(self.inventory.keys())[idx-1]
+        if item.is_usable(self):
+          item.use(self)
+          if item.is_consumable:
+            if self.inventory[item] == 1:
+              self.inventory.pop(item)
+            else:
+              self.inventory[item] -= 1
         else:
-          slow_print('Your hp is full!')
+          slow_print(item.not_usable_message)
       else:
         slow_print('Item not available!')
     else:
       slow_print('Your bag is empty!')
 
   def move(self, labyrinth):
-    room = labyrinth.map[self.location]
+    room = labyrinth.map[tuple(self.location)]
     if not room.monsters:
       try:
         self.change_room(labyrinth)
@@ -252,10 +255,14 @@ class Player:
 
   def change_room(self, labyrinth):
     slow_print('The following doors are available:')
-    for door in labyrinth.map[self.location].doors:
+    for door in labyrinth.map[tuple(self.location)].doors:
       print(f'   - a door to the ({door[0]}){door[1:]}')
     loc = list(self.location)
-    direction = slow_input("What direction do you go? ", shorthand_map=movement_shorthand_map, allowable_inputs=allowable_movement_directions)
+    direction = slow_input(
+      'What direction do you go?',
+      shorthand_map=movement_shorthand_map,
+      allowable_inputs=allowable_movement_directions
+    )
     if direction == 'south':
       if self.location[0]+1 < labyrinth.map.shape[0]:
         loc[0] += 1
@@ -281,35 +288,60 @@ class Player:
       else:
         raise MovementError("Cannot move north!")
     self.location = tuple(loc)
-    labyrinth.map[self.location].describe()
+    labyrinth.map[tuple(self.location)].describe()
 
-  def attack(self):
-    if random() < self.accuracy:
-      return randint(self.damage_lower, self.damage_upper)
-    else:
-      return 0
+  def get_attribute_modifier(self, attr):
+    return self.attributes[attr] - 10
 
   def check(self, *args):
     slow_print(f'You have {self.gold} gold and {self.experience_points} experience (level {self.level})!')
-    slow_print(f'Your current hit points are {self.hp}/{self.max_hp}.')
+    slow_print(f'Your current HP is {self.hp}/{self.max_hp}.')
     if self.inventory:
       slow_print('You have the following items:')
       for item, quantity in self.inventory.items():
-        slow_print(f'- {item} (Amount: {quantity})')
+        slow_print(f' - {item.name} (Amount: {quantity})')
     if self.map is not None:
       slow_print('This is what your map looks like:')
       tmp_map = deepcopy(self.map)
-      tmp_map[self.location] = '*'
+      tmp_map[tuple(self.location)] = '*'
       print('+---' * tmp_map.shape[1] + '+')
       for i in range(tmp_map.shape[0]):
         slow_print(f'| {" | ".join([c for c in tmp_map[i, :]])} |')
         print('+---' * tmp_map.shape[1] + '+')
+    slow_print('ATTRIBUTES')
+    for attr, val in self.attributes.items():
+      slow_print(f'{attr} : {val:>2d} ({self.get_attribute_modifier(attr):+d})')
+
+  def assign_attribute_points(self, *args):
+    if self.attribute_points > 0:
+      while self.attribute_points > 0:
+        choice = slow_input(
+          'What attribute would you like to increase? [(s)tr, (i)nt, (c)on, (d)ex, (f)inish]',
+          shorthand_map={'s' : 'str', 'i' : 'int', 'c' : 'con', 'd' : 'dex', 'f' : 'finish'},
+          allowable_inputs=['str', 'int', 'con', 'dex', 'finish']
+        )
+        if choice == 'finish':
+          break
+        choice = choice.upper()
+        amount = slow_input(
+          f'How many points to you assign to {choice}? [1 - {self.attribute_points}]',
+          int,
+          allowable_inputs=list(range(1, self.attribute_points+1))
+        )
+        self.attributes[choice] += amount
+        self.attribute_points -= amount
+        if choice == 'CON':
+          self.hp += amount * health_per_con_point
+        slow_print(f'{choice} is increased to {self.attributes[choice]}. You have {self.attribute_points} points left.')
+      self.assign_max_hp()
+    else:
+      slow_print('You do not have any points to assign!')
 
   def shop(self, room: MerchantRoom):
     slow_print('You approach the merchant and inspect his wares...')
     slow_print('The following items are available:')
-    for i, (item, price) in enumerate(room.items.items()):
-      slow_print(f' - [{i+1}] : {item} ({price} g)')
+    for i, item in enumerate(room.items):
+      slow_print(f' - [{i+1}] : {item.name} ({item.price} g)')
     while True:
       choice = slow_input('Which would you like to buy? (# or (l)eave)', shorthand_map={'l' : 'leave'})
       if choice != 'leave':
@@ -319,10 +351,10 @@ class Player:
           slow_print('Unrecognized command!')
           continue
         if 0 <= choice < len(room.items):
-          if self.gold >= list(room.items.values())[choice]:
-            slow_print(f'You purchase {list(room.items.keys())[choice]} for {list(room.items.values())[choice]} g...')
-            self.inventory[list(room.items.keys())[choice]] += 1
-            self.gold -= list(room.items.values())[choice]
+          if self.gold >= room.items[choice].price:
+            slow_print(f'You purchase {room.items[choice].name} for {room.items[choice].price} g...')
+            self.inventory[room.items[choice]] += 1
+            self.gold -= room.items[choice].price
             slow_print(f'Remaining gold: {self.gold}')
             continue
           else:
@@ -332,23 +364,17 @@ class Player:
       else:
         break
     print('The merchant nods and returns to his business.')
-
-  def attack_monster(self, labyrinth, monsters):
-    slow_print('Which monster do you attack? ')
-    for i, monster in enumerate(monsters):
-      if monster.hp > 0:
-        slow_print(f' - [{i+1}] : {monster.name}')
-    idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
-    damage = self.attack()
-    if damage > 0:
-      slow_print(f'You inflict {damage} damage on {monsters[idx-1].name}!')
-      monsters[idx-1].hp = max(0, monsters[idx-1].hp - damage)
-    else:
-      slow_print('Oh no! You missed...')
-    if monsters[idx-1].hp <= 0:
-      slow_print(f'{monsters[idx-1].name} has died!')
-      self.experience_points += monsters[idx-1].xp_worth
-      monsters.pop(idx-1)
+    for item in self.inventory:
+      if isinstance(item, MeleeWeapon):
+        if item not in self.weapons:
+          self.weapons.add(item)
+      elif isinstance(item, AttackSpell):
+        if item not in self.spells:
+          self.spells.add(item)
+    while any([isinstance(i, AttackSpell) for i in self.inventory]):
+      for item in self.inventory:
+        self.inventory.pop(item)
+        break
 
   def run(self, labyrinth, monsters):
     if self.escape_check(monsters):
@@ -359,8 +385,8 @@ class Player:
       slow_print("You failed to escape!")
 
   def escape_check(self, monsters):
-    avg_monster_accuracy = sum(monster.accuracy * monster.speed for monster in monsters) / len(monsters)
-    return self.accuracy * self.speed > avg_monster_accuracy
+    avg_monster_initiative = sum(monster.roll_initiative() for monster in monsters) / len(monsters)
+    return self.roll_initiative() > avg_monster_initiative
 
   def check_level_up(self):
     if self.level < 5:
@@ -368,7 +394,103 @@ class Player:
         self.damage_lower, self.damage_upper = level_to_damage[self.player_class]
         self.hp = level_to_hp_map[self.player_class]
         self.level += 1
-        slow_print(f'You leveled up to level {self.level}!')
+        self.attribute_points += attribute_points_per_level
+        slow_print(f'You leveled up to level {self.level}! You have {self.attribute_points} attribute points.')
 
   def save_game(self, labyrinth):
     save_game(self, labyrinth)
+
+  def get_AC(self):
+    return 10 + self.get_attribute_modifier('DEX')
+
+  def roll_initiative(self):
+    return randint(1, 20) + self.get_attribute_modifier('DEX')
+
+  def assign_max_hp(self):
+    self.max_hp = self.attributes['CON'] * health_per_con_point
+
+class Fighter(Player):
+  def __init__(self, start_location):
+    super().__init__(start_location)
+    self.attributes['STR'] += 2
+    self.attributes['INT'] -= 2
+    self.attributes['CON'] += 2
+    self.attributes['DEX'] += 2
+    self.hp = self.attributes['CON'] * health_per_con_point
+    self.assign_max_hp()
+    self.inventory[StarShard()] = 1
+    self.weapons.add(StarShard())
+    self.equipped_weapon = list(self.weapons)[0]
+
+  def attack_action(self, labyrinth, monsters):
+    slow_print('Which monster do you attack? ')
+    for i, monster in enumerate(monsters):
+      if monster.hp > 0:
+        slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
+    idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
+    self.attack(monsters[idx-1])
+    if monsters[idx-1].hp <= 0:
+      slow_print(f'{monsters[idx-1].name} has died!')
+      self.experience_points += monsters[idx-1].xp_worth
+      monsters.pop(idx-1)
+
+  def attack(self, monster):
+    if randint(1, 20) + self.get_attribute_modifier('STR') >= monster.AC:
+      damage = self.equipped_weapon.roll_damage() + self.equipped_weapon.attack_bonus + self.get_attribute_modifier('STR')
+      slow_print(f'You inflict {damage} damage on {monster.name}!')
+      monster.hp = max(0, monster.hp - damage)
+    else:
+      slow_print('Oh no! You missed...')
+
+  def check(self, *args):
+    super().check()
+    slow_print('You have the following weapons:')
+    for weapon in self.weapons:
+      slow_print(f' - {weapon.name}')
+    slow_print(f'Your currently equipped weapon is {self.equipped_weapon.name}.')
+
+class Mage(Player):
+  def __init__(self, start_location):
+    super().__init__(start_location)
+    self.attributes['STR'] -= 2
+    self.attributes['INT'] += 8
+    self.attributes['CON'] -= 2
+    self.hp = self.attributes['CON'] * health_per_con_point
+    self.assign_max_hp()
+    self.spells.add(SolarFlare())
+
+  def attack_action(self, labyrinth, monsters):
+    slow_print('What spell do you use?')
+    for i, spell in enumerate(self.spells):
+      slow_print(f' - [{i+1}] : {spell.name}')
+    chosen_spell = list(self.spells)[slow_input('', int, allowable_inputs=list(range(1, len(self.spells)+1)))-1]
+    if chosen_spell.range == 'single':
+      slow_print('Which monster do you attack?')
+      for i, monster in enumerate(monsters):
+        if monster.hp > 0:
+          slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
+      idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
+      self.attack([monsters[idx-1]], chosen_spell)
+    elif chosen_spell.range == 'multiple':
+      self.attack(monsters, chosen_spell)
+    while any([monster.hp <= 0 for monster in monsters]):
+      for i, monster in enumerate(monsters):
+        if monster.hp <= 0:
+          slow_print(f'{monster.name} has died!')
+          self.experience_points += monster.xp_worth
+          monsters.pop(i)
+
+  def attack(self, monsters, spell):
+    damage = spell.roll_damage() + self.get_attribute_modifier('INT')
+    for monster in monsters:
+      if randint(1, 20) + self.get_attribute_modifier('INT') >= monster.AC:
+        slow_print(f'You inflict {damage} damage on {monster.name}!')
+        monster.hp = max(0, monster.hp - damage)
+      else:
+        slow_print(f'Oh no! You missed {monster.name}...')
+
+  def check(self, *args):
+    super().check()
+    slow_print('You have the following spells:')
+    for spell in self.spells:
+      slow_print(f' - {spell.name}')

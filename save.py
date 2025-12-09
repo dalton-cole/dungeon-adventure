@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from os import listdir
+from os import listdir, mkdir
 from os.path import dirname, exists, join as pjoin
 from pickle import load, dump
 from print import slow_input, slow_print, options
@@ -9,6 +9,8 @@ from print import slow_input, slow_print, options
 save_path = pjoin(dirname(__file__), '.saves')
 
 def get_existing_save_files():
+  if not exists(save_path):
+    mkdir(save_path)
   return [int(f.split('.')[0]) for f in listdir(save_path) if f.endswith('.pkl')]
 
 def print_existing_save_files():

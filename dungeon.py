@@ -4,6 +4,9 @@ from random import choices, randint, random
 from numpy import empty
 from print import slow_print
 from monsters import Goblin, DarkKnight, Dragon
+from items import Elixir
+from weapons import VegaBlade, CygnusHammer
+from spells import Eclipse, Supernova
 
 
 chest_sizes = ['small', 'medium', 'large', 'huge']
@@ -19,7 +22,7 @@ max_number_monsters_per_room = 2
 class TreasureChest:
   def __init__(self):
     self.gold = chest_size_to_gold[choices(chest_sizes, weights=[0.5, 0.3, 0.15, 0.05])[0]]
-    self.item = 'health potion' if random() > 0.5 else None
+    self.item = Elixir() if random() > 0.5 else None
 
 class Room:
   def __init__(self, doors):
@@ -47,9 +50,13 @@ class NormalRoom(Room):
 
 class MerchantRoom(Room):
   def generate(self):
-    self.items = {
-      'health potion' : 100
-    }
+    self.items = [
+      Elixir(),
+      VegaBlade(),
+      CygnusHammer(),
+      Eclipse(),
+      Supernova()
+    ]
   def describe(self):
     slow_print('A figure in a dark robe is hunched in the corner.')
     slow_print('"Gold for wares..." is heard in a steely voice.')
@@ -75,4 +82,4 @@ class Labyrinth:
             self.map[i,j] = NormalRoom(doors)
       if any([room.monsters for room in self.map.ravel()]) and any([isinstance(room, MerchantRoom) for room in self.map.ravel()]):
         break
-    self.start_location = (randint(0, size-1), randint(0, size-1))
+    self.start_location = [randint(0, size-1), randint(0, size-1)]
