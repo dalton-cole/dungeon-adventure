@@ -11,10 +11,11 @@ save_path = pjoin(dirname(__file__), '.saves')
 def get_existing_save_files():
   if not exists(save_path):
     mkdir(save_path)
-  return [int(f.split('.')[0]) for f in listdir(save_path) if f.endswith('.pkl')]
+  return sorted([int(f.split('.')[0]) for f in listdir(save_path) if f.endswith('.pkl')])
 
 def print_existing_save_files():
-  slow_print('The following files are present:')
+  if get_existing_save_files():
+    slow_print('The following files are present:')
   for save_file in get_existing_save_files():
     slow_print(f' - {save_file}')
 

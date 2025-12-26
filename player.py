@@ -77,12 +77,13 @@ battle_action_shorthand_map = {
   'r' : 'run'
 }
 
-allowable_movement_directions = ['north', 'south', 'east', 'west']
+allowable_movement_directions = ['north', 'south', 'east', 'west', 'cancel']
 movement_shorthand_map = {
   'n' : 'north',
   's' : 'south',
   'e' : 'east',
-  'w' : 'west'
+  'w' : 'west',
+  'c' : 'cancel'
 }
 
 def quit_game(*args):
@@ -101,10 +102,37 @@ class MovementError(Exception):
   def __str__(self):
     return f"{self.message}"
 
+class PlayerInventory:
+  def __init__(self):
+    self.items = defaultdict(int)
+
+  def add_item(self, item):
+    self.items[item] += 1
+
+  def remove_item(self, item):
+    if self.items[item] == 1:
+      self.items.pop(item)
+    else:
+      self.items[item] -= 1
+
+  def get_item_by_enumeration(self, num):
+    if 1 <= num <= len(self.items):
+      return list(self.items.keys())[num-1]
+    else:
+      return None
+
+  def print_item_enumeration_and_amount(self):
+    for i, (item, quantity) in enumerate(self.items.items()):
+      slow_print(f' - [{i+1}] : {item.name} (Amount: {quantity})')
+
+  def print_item_enumeration_amount_and_price(self):
+    for i, item in enumerate(self.items):
+      slow_print(f' - [{i+1}] : {item.name} (Quantity: {self.items[item]}) ({item.price} g)')
+
 class Player:
   def __init__(self, start_location):
     self.gold = 0
-    self.inventory = defaultdict(int)
+    self.inventory = PlayerInventory()
     self.weapons = set()
     self.spells = set()
     self.actions = {
@@ -197,7 +225,7 @@ class Player:
           slow_print(f'You open a chest and find {chest.gold} gold!')
           if chest.item:
             slow_print(f'You also find {chest.item.name} inside!')
-            self.inventory[chest.item] += 1
+            self.inventory.add_item(chest.item)
           self.gold += chest.gold
       else:
         slow_print('There are no chests in the room.')
@@ -213,20 +241,16 @@ class Player:
         self.shop(room)
 
   def use_item(self, *args):
-    if self.inventory:
+    if self.inventory.items:
       slow_print('Which item would you like to use? ')
-      for i, (item, quantity) in enumerate(self.inventory.items()):
-        slow_print(f' - [{i+1}] : {item.name} (Amount: {quantity})')
-      idx = slow_input('', int, allowable_inputs=list(range(1, len(self.inventory)+1)))
-      if isinstance(list(self.inventory.keys())[idx-1], Item):
-        item = list(self.inventory.keys())[idx-1]
+      self.inventory.print_item_enumeration_and_amount()
+      idx = slow_input('', int, allowable_inputs=list(range(1, len(self.inventory.items)+1)))
+      item = self.inventory.get_item_by_enumeration(idx)
+      if isinstance(item, Item):
         if item.is_usable(self):
           item.use(self)
           if item.is_consumable:
-            if self.inventory[item] == 1:
-              self.inventory.pop(item)
-            else:
-              self.inventory[item] -= 1
+            self.inventory.remove_item(item)
         else:
           slow_print(item.not_usable_message)
       else:
@@ -254,9 +278,9 @@ class Player:
           self.battle(labyrinth)
 
   def change_room(self, labyrinth):
-    slow_print('The following doors are available:')
+    slow_print('The following doors are available [enter direction or (c)ancel]:')
     for door in labyrinth.map[tuple(self.location)].doors:
-      print(f'   - a door to the ({door[0]}){door[1:]}')
+      slow_print(f'   - a door to the ({door[0]}){door[1:]}')
     loc = list(self.location)
     direction = slow_input(
       'What direction do you go?',
@@ -287,6 +311,9 @@ class Player:
         slow_print(f'You head north and enter the next room...')
       else:
         raise MovementError("Cannot move north!")
+    elif direction == 'cancel':
+      slow_print('You do not move.')
+      return
     self.location = tuple(loc)
     labyrinth.map[tuple(self.location)].describe()
 
@@ -296,18 +323,17 @@ class Player:
   def check(self, *args):
     slow_print(f'You have {self.gold} gold and {self.experience_points} experience (level {self.level})!')
     slow_print(f'Your current HP is {self.hp}/{self.max_hp}.')
-    if self.inventory:
+    if self.inventory.items:
       slow_print('You have the following items:')
-      for item, quantity in self.inventory.items():
-        slow_print(f' - {item.name} (Amount: {quantity})')
+      self.inventory.print_item_enumeration_and_amount()
     if self.map is not None:
       slow_print('This is what your map looks like:')
       tmp_map = deepcopy(self.map)
       tmp_map[tuple(self.location)] = '*'
-      print('+---' * tmp_map.shape[1] + '+')
+      slow_print('+---' * tmp_map.shape[1] + '+')
       for i in range(tmp_map.shape[0]):
         slow_print(f'| {" | ".join([c for c in tmp_map[i, :]])} |')
-        print('+---' * tmp_map.shape[1] + '+')
+        slow_print('+---' * tmp_map.shape[1] + '+')
     slow_print('ATTRIBUTES')
     for attr, val in self.attributes.items():
       slow_print(f'{attr} : {val:>2d} ({self.get_attribute_modifier(attr):+d})')
@@ -338,42 +364,109 @@ class Player:
       slow_print('You do not have any points to assign!')
 
   def shop(self, room: MerchantRoom):
-    slow_print('You approach the merchant and inspect his wares...')
-    slow_print('The following items are available:')
-    for i, item in enumerate(room.items):
-      slow_print(f' - [{i+1}] : {item.name} ({item.price} g)')
+    slow_print('You approach the merchant...')
     while True:
-      choice = slow_input('Which would you like to buy? (# or (l)eave)', shorthand_map={'l' : 'leave'})
-      if choice != 'leave':
-        try:
-          choice = int(choice)-1
-        except:
-          slow_print('Unrecognized command!')
-          continue
-        if 0 <= choice < len(room.items):
-          if self.gold >= room.items[choice].price:
-            slow_print(f'You purchase {room.items[choice].name} for {room.items[choice].price} g...')
-            self.inventory[room.items[choice]] += 1
-            self.gold -= room.items[choice].price
-            slow_print(f'Remaining gold: {self.gold}')
+      buy_or_sell = slow_input(
+        'Would you like to do? [(b)uy/(s)ell/(l)eave]',
+        shorthand_map={'b' : 'buy', 's' : 'sell', 'l' : 'leave'},
+        allowable_inputs=['buy', 'sell', 'leave']
+      )
+      if buy_or_sell != 'leave':
+        if buy_or_sell == 'buy':
+          slow_print('The following items are available:')
+          for i, item in enumerate(room.items):
+            slow_print(f' - [{i+1}] : {item.name} ({item.price} g)')
+          while True:
+            choice = slow_input(
+              'Which would you like to buy? [# or (r)eturn]',
+              shorthand_map={'r' : 'return'},
+              allowable_inputs=[str(i+1) for i in range(len(room.items))] + ['return']
+            )
+            if choice != 'return':
+              try:
+                choice = int(choice)-1
+              except:
+                slow_print('Unrecognized command!')
+                continue
+              item = room.items[choice]
+              if isinstance(item, MeleeWeapon) and (not isinstance(self, Fighter)):
+                slow_print('You cannot buy weapons...')
+                continue
+              if isinstance(item, AttackSpell):
+                if not isinstance(self, Mage):
+                  slow_print('You cannot buy spells...')
+                  continue
+                elif item in self.spells:
+                  slow_print(f'You already know {item.name}!')
+                  continue
+                elif item in self.inventory.items:
+                  slow_print(f'You have already purchased {item.name}!')
+                  continue
+              if 0 <= choice < len(room.items):
+                if self.gold >= item.price:
+                  slow_print(f'You purchase {item.name} for {item.price} g...')
+                  self.inventory.add_item(item)
+                  self.gold -= item.price
+                  slow_print(f'Remaining gold: {self.gold}')
+                  continue
+                else:
+                  slow_print("You don't have enough gold for that!")
+                  continue
+              slow_print('That item is not available!')
+            else:
+              break
+        elif buy_or_sell == 'sell':
+          if not self.inventory.items:
+            slow_print("You don't have anything to sell!")
             continue
-          else:
-            slow_print("You don't have enough gold for that!")
-            continue
-        slow_print('That item is not available!')
+          while True:
+            slow_print('What would you like to sell? [# or (r)eturn]')
+            self.inventory.print_item_enumeration_amount_and_price()
+            choice = slow_input(
+              '',
+              shorthand_map={'r' : 'return'},
+              allowable_inputs=[str(i+1) for i in range(len(self.inventory.items))] + ['return']
+            )
+            if choice != 'return':
+              try:
+                choice = int(choice)
+              except:
+                slow_print('Unrecognized command!')
+                continue
+              if 1 <= choice <= len(self.inventory.items):
+                item = self.inventory.get_item_by_enumeration(choice)
+                if isinstance(item, MeleeWeapon) and isinstance(self, Fighter):
+                  if sum(v if isinstance(k, MeleeWeapon) else 0 for k, v in self.inventory.items.items()) == 1:
+                    slow_print("You can't sell your last weapon!")
+                    continue
+                slow_print(f'You sell {item.name} for {item.price} g...')
+                self.gold += item.price
+                self.inventory.remove_item(item)
+                slow_print(f'Gold: {self.gold}')
+              else:
+                slow_print('That item is not available!')
+                continue
+            else:
+              break
       else:
         break
-    print('The merchant nods and returns to his business.')
-    for item in self.inventory:
+    slow_print('The merchant nods and returns to his business.')
+    self.weapons = set()
+    for item in self.inventory.items:
       if isinstance(item, MeleeWeapon):
         if item not in self.weapons:
           self.weapons.add(item)
       elif isinstance(item, AttackSpell):
         if item not in self.spells:
+          slow_print(f'You learn to cast {item.name}!')
           self.spells.add(item)
-    while any([isinstance(i, AttackSpell) for i in self.inventory]):
-      for item in self.inventory:
-        self.inventory.pop(item)
+    if isinstance(self, Fighter):
+      if self.equipped_weapon not in self.weapons:
+        self.equipped_weapon = list(self.weapons)[0]
+        slow_print(f'Your equipped weapon has been changed to {self.equipped_weapon.name}.')
+    while any([isinstance(i, AttackSpell) for i in self.inventory.items]):
+      for item in self.inventory.items:
+        self.inventory.remove_item(item)
         break
 
   def run(self, labyrinth, monsters):
@@ -418,7 +511,7 @@ class Fighter(Player):
     self.attributes['DEX'] += 2
     self.hp = self.attributes['CON'] * health_per_con_point
     self.assign_max_hp()
-    self.inventory[StarShard()] = 1
+    self.inventory.add_item(StarShard())
     self.weapons.add(StarShard())
     self.equipped_weapon = list(self.weapons)[0]
 
