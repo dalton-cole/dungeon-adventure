@@ -17,7 +17,7 @@ option_check_functions = {
 
 def print_settings():
   slow_print('Current options:')
-  slow_print(f'Character print delay: {options['text delay']:n} s')
+  slow_print(f"Character print delay: {options['text delay']:n} s")
 
 def set_options(*args):
   print_settings()
