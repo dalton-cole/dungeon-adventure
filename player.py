@@ -20,38 +20,6 @@ level_to_xp_map = {
   4: 700,
   5: 1400
 }
-level_to_hp_map = {
-  'fighter' : {
-    1: 10,
-    2: 15,
-    3: 25,
-    4: 40,
-    5: 60
-  },
-  'mage' : {
-    1: 6,
-    2: 10,
-    3: 16,
-    4: 28,
-    5: 38
-  }
-}
-level_to_damage = {
-  'fighter' : {
-    1: (5, 9),
-    2: (8, 12),
-    3: (10, 16),
-    4: (12, 20),
-    5: (18, 26)
-  },
-  'mage' : {
-    1: (10, 14),
-    2: (12, 16),
-    3: (15, 22),
-    4: (18, 25),
-    5: (22, 32)
-  }
-}
 attribute_points_per_level = 4
 health_per_con_point = 3
 
@@ -484,8 +452,6 @@ class Player:
   def check_level_up(self):
     if self.level < 5:
       if self.experience_points > level_to_xp_map[self.level+1]:
-        self.damage_lower, self.damage_upper = level_to_damage[self.player_class]
-        self.hp = level_to_hp_map[self.player_class]
         self.level += 1
         self.attribute_points += attribute_points_per_level
         slow_print(f'You leveled up to level {self.level}! You have {self.attribute_points} attribute points.')
