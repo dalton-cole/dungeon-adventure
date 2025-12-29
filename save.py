@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from os import listdir, mkdir
+from os import listdir, mkdir, remove
 from os.path import dirname, exists, join as pjoin
 from pickle import load, dump
 from print import slow_input, slow_print, options
@@ -51,3 +51,24 @@ def load_data(file_path):
 def save_data(save_list, file_path):
   with open(file_path, 'wb') as f:
     dump(save_list, f)
+
+def edit_save_data(*args):
+  choice = slow_input('Would you like to delete save data? [y/n]', allowable_inputs=['y', 'n'])
+  if choice == 'y':
+    while get_existing_save_files():
+      slow_print('Which file would you like to delete? [enter file # or (r)eturn]')
+      print_existing_save_files()
+      fyle = slow_input(
+        '',
+        shorthand_map={'r' : 'return'},
+        allowable_inputs=[str(f) for f in get_existing_save_files()] + ['return']
+      )
+      if fyle != 'return':
+        fyle_path = pjoin(save_path, f'{fyle}.pkl')
+        if exists(fyle_path):
+          remove(fyle_path)
+          slow_print(f'File {fyle} deleted...')
+      else:
+        break
+  else:
+    slow_print('Save data not modified.')

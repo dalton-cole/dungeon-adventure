@@ -2,7 +2,7 @@
 
 from random import randint
 from print import slow_print, slow_input, set_options
-from save import save_game
+from save import save_game, edit_save_data
 from copy import deepcopy
 from collections import defaultdict
 from monsters import Monster
@@ -22,7 +22,19 @@ level_to_xp_map = {
 attribute_points_per_level = 4
 health_per_con_point = 3
 
-allowable_actions = ['(f)ight', '(l)ook/ta(l)k', '(m)ove', '(o)pen', '(c)heck', '(u)se', '(a)ssign', '(s)ave', 'o(p)tions', '(q)uit']
+allowable_actions = [
+  '(f)ight',
+  '(l)ook/ta(l)k',
+  '(m)ove',
+  '(o)pen',
+  '(c)heck',
+  '(u)se',
+  '(a)ssign',
+  '(s)ave',
+  'o(p)tions',
+  '(d)ata',
+  '(q)uit'
+]
 action_shorthand_map = {
   'h' : 'help',
   'f' : 'fight',
@@ -34,6 +46,7 @@ action_shorthand_map = {
   'a' : 'assign',
   's' : 'save',
   'p' : 'options',
+  'd' : 'data',
   'q' : 'quit'
 }
 
@@ -117,6 +130,7 @@ class Player:
       'assign'  : self.assign_attribute_points,
       'save'    : self.save_game,
       'options' : set_options,
+      'data'    : edit_save_data,
       'quit'    : quit_game
     }
     self.battle_actions = {
