@@ -8,6 +8,8 @@ from items import Item
 class MeleeWeapon(Item):
   def __init__(self):
     self.is_consumable = False
+    self.max_damage = None
+    self.attack_bonus = None
 
   def roll_damage(self):
     return randint(1, self.max_damage)
@@ -18,6 +20,9 @@ class MeleeWeapon(Item):
 
   def is_usable(self, player):
     return True
+
+  def describe(self):
+    return f'Melee Weapon deals 1d{self.max_damage}+{self.attack_bonus} DMG'
 
 class StarShard(MeleeWeapon):
   def __init__(self):

@@ -92,6 +92,10 @@ class PlayerInventory:
     for i, (item, quantity) in enumerate(self.items.items()):
       slow_print(f' - [{i+1}] : {item.name} (Amount: {quantity})')
 
+  def print_item_enumeration_description_and_amount(self):
+    for i, (item, quantity) in enumerate(self.items.items()):
+      slow_print(f' - [{i+1}] : {item.name} ({item.describe()}) (Amount: {quantity})')
+
   def print_item_enumeration_amount_and_price(self):
     for i, item in enumerate(self.items):
       slow_print(f' - [{i+1}] : {item.name} (Quantity: {self.items[item]}) ({item.price} g)')
@@ -189,7 +193,7 @@ class Player:
         slow_print(f'There are {len(room.treasure)} chest(s) in the room. You start opening...')
         while room.treasure:
           chest = room.treasure.pop(0)
-          slow_print(f'You open a chest and find {chest.gold} gold!')
+          slow_print(f'You open a {chest.size} chest and find {chest.gold} gold!')
           if chest.item:
             slow_print(f'You also find {chest.item.name} inside!')
             self.inventory.add_item(chest.item)
@@ -210,7 +214,7 @@ class Player:
   def use_item(self, *args):
     if self.inventory.items:
       slow_print('Which item would you like to use? ')
-      self.inventory.print_item_enumeration_and_amount()
+      self.inventory.print_item_enumeration_description_and_amount()
       idx = slow_input('', int, allowable_inputs=list(range(1, len(self.inventory.items)+1)))
       item = self.inventory.get_item_by_enumeration(idx)
       if isinstance(item, Item):
@@ -292,7 +296,7 @@ class Player:
     slow_print(f'Your current HP is {self.hp}/{self.max_hp}.')
     if self.inventory.items:
       slow_print('You have the following items:')
-      self.inventory.print_item_enumeration_and_amount()
+      self.inventory.print_item_enumeration_description_and_amount()
     if self.map is not None:
       slow_print('This is what your map looks like:')
       tmp_map = deepcopy(self.map)
@@ -345,7 +349,7 @@ class Player:
         if buy_or_sell == 'buy':
           slow_print('The following items are available:')
           for i, item in enumerate(room.items):
-            slow_print(f' - [{i+1}] : {item.name} ({item.price} g)')
+            slow_print(f' - [{i+1}] : {item.name} ({item.describe()}) ({item.price} g)')
           while True:
             choice = slow_input(
               'Which would you like to buy? [# or (r)eturn]',
@@ -489,10 +493,14 @@ class Fighter(Player):
       if monster.hp > 0:
         slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
     idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
-    self.attack(monsters[idx-1])
-    if monsters[idx-1].hp <= 0:
-      slow_print(f'{monsters[idx-1].name} has died!')
-      self.experience_points += monsters[idx-1].xp_worth
+    _monster = monsters[idx-1]
+    self.attack(_monster)
+    if _monster.hp <= 0:
+      slow_print(f'{_monster.name} has died!')
+      self.experience_points += _monster.xp_worth
+      if _monster.gold:
+        slow_print(f'You pick up {_monster.gold} gold from the corpse...')
+        self.gold += _monster.gold
       monsters.pop(idx-1)
 
   def attack(self, monster):

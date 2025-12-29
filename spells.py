@@ -10,6 +10,9 @@ class AttackSpell:
   def roll_damage(self):
     return randint(1, self.max_damage)
 
+  def describe(self):
+    return f'Attack spell deals 1d{self.max_damage} DMG [{self.range} target]'
+
 class SolarFlare(AttackSpell):
   def __init__(self):
     super().__init__()

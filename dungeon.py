@@ -2,7 +2,7 @@
 
 from random import choices, randint, random
 from print import slow_print
-from monsters import Goblin, DarkKnight, Dragon
+from monsters import available_monsters
 from items import Elixir
 from weapons import VegaBlade, CygnusHammer
 from spells import Eclipse, Supernova
@@ -36,7 +36,7 @@ class NormalRoom(Room):
     for _ in range(randint(0, max_chests_per_room)):
       self.treasure.append(TreasureChest())
     for _ in range(randint(0, max_number_monsters_per_room)):
-      self.monsters.append(choices([Goblin(), DarkKnight(), Dragon()], weights=[0.5, 0.4, 0.1])[0])
+      self.monsters.append(choices(available_monsters, weights=[0.5, 0.4, 0.1])[0]())
   def describe(self):
     slow_print(f'You are in a room with:')
     slow_print(f' - {len(self.doors)} doors')
