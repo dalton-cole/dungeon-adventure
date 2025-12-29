@@ -3,11 +3,10 @@
 from random import randint
 from print import slow_print, slow_input, set_options
 from save import save_game
-from numpy import full
 from copy import deepcopy
 from collections import defaultdict
 from monsters import Monster
-from dungeon import NormalRoom, MerchantRoom
+from dungeon import NormalRoom, MerchantRoom, Map
 from weapons import MeleeWeapon, StarShard
 from spells import AttackSpell, SolarFlare
 from items import Item
@@ -138,12 +137,12 @@ class Player:
     self.attribute_points = attribute_points_per_level * (self.level - 1)
 
   def battle(self, labyrinth):
-    if labyrinth.map[tuple(self.location)].monsters:
-      slow_print(f'You face {len(labyrinth.map[tuple(self.location)].monsters)} monster(s)!')
-      for monster in labyrinth.map[tuple(self.location)].monsters:
+    if labyrinth.get_room(self.location).monsters:
+      slow_print(f'You face {len(labyrinth.get_room(self.location).monsters)} monster(s)!')
+      for monster in labyrinth.get_room(self.location).monsters:
         slow_print(f' - {monster.name} ({monster.hp}/{monster.max_hp} HP)')
-      while labyrinth.map[tuple(self.location)].monsters:
-        turn_order = sorted([self] + labyrinth.map[tuple(self.location)].monsters, key=lambda x: x.roll_initiative())[::-1]
+      while labyrinth.get_room(self.location).monsters:
+        turn_order = sorted([self] + labyrinth.get_room(self.location).monsters, key=lambda x: x.roll_initiative())[::-1]
         for entity in turn_order:
           if entity.hp > 0:
             if isinstance(entity, Monster):
@@ -155,7 +154,7 @@ class Player:
                   shorthand_map=battle_action_shorthand_map,
                   allowable_inputs=allowable_battle_actions
                 )
-              ](labyrinth, labyrinth.map[tuple(self.location)].monsters) == 'escaped':
+              ](labyrinth, labyrinth.get_room(self.location).monsters) == 'escaped':
                 self.check_level_up()
                 return
       self.check_level_up()
@@ -164,17 +163,17 @@ class Player:
 
   def action(self, labyrinth):
     if self.map is None:
-      self.map = full(labyrinth.map.shape, '?')
-    room = labyrinth.map[tuple(self.location)]
+      self.map = Map(labyrinth.size, '?')
+    room = labyrinth.get_room(self.location)
     if isinstance(room, NormalRoom):
       if (not room.monsters) and (not room.treasure):
-        self.map[tuple(self.location)] = 'X'
+        self.map.set_location(self.location, 'X')
       elif room.monsters:
-        self.map[tuple(self.location)] = 'D'
+        self.map.set_location(self.location, 'D')
       elif room.treasure:
-        self.map[tuple(self.location)] = 'C'
+        self.map.set_location(self.location, 'C')
     elif isinstance(room, MerchantRoom):
-      self.map[tuple(self.location)] = 'M'
+      self.map.set_location(self.location, 'M')
     self.actions[
       slow_input(
         f'What would you like to do next? [(h)elp]: ',
@@ -184,7 +183,7 @@ class Player:
     ](labyrinth)
 
   def open(self, labyrinth):
-    room = labyrinth.map[tuple(self.location)]
+    room = labyrinth.get_room(self.location)
     if not room.monsters:
       if room.treasure:
         slow_print(f'There are {len(room.treasure)} chest(s) in the room. You start opening...')
@@ -201,7 +200,7 @@ class Player:
       slow_print('You cannot open chests because the monsters are in the way!')
 
   def look_around(self, labyrinth):
-    room = labyrinth.map[tuple(self.location)]
+    room = labyrinth.get_room(self.location)
     room.describe()
     if isinstance(room, MerchantRoom):
       choice = slow_input('Would you like to talk to the merchant? [y/n]', allowable_inputs=['y', 'n'])
@@ -227,7 +226,7 @@ class Player:
       slow_print('Your bag is empty!')
 
   def move(self, labyrinth):
-    room = labyrinth.map[tuple(self.location)]
+    room = labyrinth.get_room(self.location)
     if not room.monsters:
       try:
         self.change_room(labyrinth)
@@ -247,7 +246,7 @@ class Player:
 
   def change_room(self, labyrinth):
     slow_print('The following doors are available [enter direction or (c)ancel]:')
-    for door in labyrinth.map[tuple(self.location)].doors:
+    for door in labyrinth.get_room(self.location).doors:
       slow_print(f'   - a door to the ({door[0]}){door[1:]}')
     loc = list(self.location)
     direction = slow_input(
@@ -256,7 +255,7 @@ class Player:
       allowable_inputs=allowable_movement_directions
     )
     if direction == 'south':
-      if self.location[0]+1 < labyrinth.map.shape[0]:
+      if self.location[0]+1 < labyrinth.map.size:
         loc[0] += 1
         slow_print(f'You head south and enter the next room...')
       else:
@@ -268,7 +267,7 @@ class Player:
       else:
         raise MovementError("Cannot move west!")
     elif direction == 'east':
-      if self.location[1]+1 < labyrinth.map.shape[1]:
+      if self.location[1]+1 < labyrinth.map.size:
         loc[1] += 1
         slow_print(f'You head east and enter the next room...')
       else:
@@ -283,7 +282,7 @@ class Player:
       slow_print('You do not move.')
       return
     self.location = tuple(loc)
-    labyrinth.map[tuple(self.location)].describe()
+    labyrinth.get_room(self.location).describe()
 
   def get_attribute_modifier(self, attr):
     return self.attributes[attr] - 10
@@ -297,11 +296,14 @@ class Player:
     if self.map is not None:
       slow_print('This is what your map looks like:')
       tmp_map = deepcopy(self.map)
-      tmp_map[tuple(self.location)] = '*'
-      slow_print('+---' * tmp_map.shape[1] + '+')
-      for i in range(tmp_map.shape[0]):
-        slow_print(f'| {" | ".join([c for c in tmp_map[i, :]])} |')
-        slow_print('+---' * tmp_map.shape[1] + '+')
+      tmp_map.set_location(self.location, '*')
+      slow_print(f'┌{"───┬" * (tmp_map.size - 1)}───┐')
+      for i in range(tmp_map.size):
+        slow_print(f'│ {" ┆ ".join([c for c in tmp_map.map[i]])} │')
+        if i+1 == tmp_map.size:
+          slow_print(f'└{"───┴" * (tmp_map.size - 1)}───┘')
+        else:
+          slow_print(f'├{"───┼" * (tmp_map.size - 1)}───┤')
     slow_print('ATTRIBUTES')
     for attr, val in self.attributes.items():
       slow_print(f'{attr} : {val:>2d} ({self.get_attribute_modifier(attr):+d})')

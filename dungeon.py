@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from random import choices, randint, random
-from numpy import empty
 from print import slow_print
 from monsters import Goblin, DarkKnight, Dragon
 from items import Elixir
@@ -21,7 +20,8 @@ max_number_monsters_per_room = 2
 
 class TreasureChest:
   def __init__(self):
-    self.gold = chest_size_to_gold[choices(chest_sizes, weights=[0.5, 0.3, 0.15, 0.05])[0]]
+    self.size = choices(chest_sizes, weights=[0.5, 0.3, 0.15, 0.05])[0]
+    self.gold = chest_size_to_gold[self.size]
     self.item = Elixir() if random() > 0.5 else None
 
 class Room:
@@ -41,8 +41,9 @@ class NormalRoom(Room):
     slow_print(f'You are in a room with:')
     slow_print(f' - {len(self.doors)} doors')
     for door in self.doors:
-      print(f'   - a door to the ({door[0]}){door[1:]}')
-    slow_print(f' - {len(self.treasure):n} chests')
+      slow_print(f'   - a door to the ({door[0]}){door[1:]}')
+    for chest in self.treasure:
+      slow_print(f' - a {chest.size} chest')
     if self.monsters:
       slow_print(f' - {len(self.monsters):n} monsters')
     for monster in self.monsters:
@@ -61,25 +62,43 @@ class MerchantRoom(Room):
     slow_print('A figure in a dark robe is hunched in the corner.')
     slow_print('"Gold for wares..." is heard in a steely voice.')
 
+class Map:
+  def __init__(self, size, fill_value=None):
+    self.size = size
+    self.map = [[fill_value for _ in range(self.size)] for _ in range(self.size)]
+
+  def get_location(self, location):
+    return self.map[location[0]][location[1]]
+
+  def set_location(self, location, value):
+    self.map[location[0]][location[1]] = value
+
+  def ravel(self):
+    return [room for row in self.map for room in row]
+
 class Labyrinth:
   def __init__(self, size):
     while True:
-      self.map = empty((size, size), dtype=Room)
-      for i in range(self.map.shape[0]):
-        for j in range(self.map.shape[1]):
+      self.size = size
+      self.map = Map(self.size)
+      for i in range(self.size):
+        for j in range(self.size):
           doors = []
           if i > 0:
             doors.append('north')
-          if i+1 < self.map.shape[0]:
+          if i+1 < self.size:
             doors.append('south')
           if j > 0:
             doors.append('west')
-          if j+1 < self.map.shape[1]:
+          if j+1 < self.size:
             doors.append('east')
           if random() < 0.1:
-            self.map[i,j] = MerchantRoom(doors)
+            self.map.set_location((i, j), MerchantRoom(doors))
           else:
-            self.map[i,j] = NormalRoom(doors)
+            self.map.set_location((i, j), NormalRoom(doors))
       if any([room.monsters for room in self.map.ravel()]) and any([isinstance(room, MerchantRoom) for room in self.map.ravel()]):
         break
     self.start_location = [randint(0, size-1), randint(0, size-1)]
+
+  def get_room(self, location):
+    return self.map.get_location(location)

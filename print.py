@@ -22,7 +22,7 @@ def print_settings():
 def set_options(*args):
   print_settings()
   while True:
-    slow_print('Which option would you like to change? [# or (d)one]')
+    slow_print('Which option would you like to change? [enter # of option to change or (d)one]')
     slow_print('You can change the following options:')
     for i, k in enumerate([options]):
       slow_print(f' - [{i+1}] : {k}')

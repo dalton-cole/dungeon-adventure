@@ -20,7 +20,7 @@ class_map = {
 def game_loop(player, labyrinth):
   slow_print('You wake up in a dimly lit room.')
   slow_print('You sense a darkness that you must destroy...')
-  labyrinth.map[tuple(player.location)].describe()
+  labyrinth.get_room(player.location).describe()
   while any(room.monsters for room in labyrinth.map.ravel()):
     player.action(labyrinth)
   slow_print('You defeated all monsters! A portal to home opens...you win!')
