@@ -22,7 +22,7 @@ class MeleeWeapon(Item):
     return True
 
   def describe(self):
-    return f'Melee Weapon : 1d{self.max_damage}+{self.attack_bonus} DMG'
+    return f'MELEE WEAPON : 1d{self.max_damage}+{self.attack_bonus} DMG'
 
 class StarShard(MeleeWeapon):
   def __init__(self):

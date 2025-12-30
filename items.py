@@ -32,3 +32,43 @@ class Elixir(Item):
 
   def describe(self):
     return 'Consumable : +2d4+2 HP'
+
+class SuperElixir(Item):
+  def __init__(self):
+    self.name = 'Super Elixir'
+    self.price = 400
+    self.not_usable_message = 'Your HP is full!'
+    self.is_consumable = True
+
+  def is_usable(self, player):
+    return player.hp < player.max_hp
+
+  def use(self, player):
+    heal_amount = (2 * randint(1, 8)) + 4
+    new_hp = min(player.max_hp, player.hp + heal_amount)
+    slow_print(f'You heal {new_hp - player.hp} hp!')
+    player.hp = new_hp
+    slow_print(f'Current HP: {player.hp}')
+
+  def describe(self):
+    return 'Consumable : +2d8+4 HP'
+
+class MegaElixir(Item):
+  def __init__(self):
+    self.name = 'Mega Elixir'
+    self.price = 1600
+    self.not_usable_message = 'Your HP is full!'
+    self.is_consumable = True
+
+  def is_usable(self, player):
+    return player.hp < player.max_hp
+
+  def use(self, player):
+    heal_amount = (4 * randint(1, 8)) + 6
+    new_hp = min(player.max_hp, player.hp + heal_amount)
+    slow_print(f'You heal {new_hp - player.hp} hp!')
+    player.hp = new_hp
+    slow_print(f'Current HP: {player.hp}')
+
+  def describe(self):
+    return 'Consumable : +4d8+6 HP'

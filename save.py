@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 from os import listdir, mkdir, remove
-from os.path import dirname, exists, join as pjoin
+from os.path import dirname, exists, getmtime, join as pjoin
+from datetime import datetime
 from pickle import load, dump
 from print import slow_input, slow_print, options
 
@@ -17,7 +18,7 @@ def print_existing_save_files():
   if get_existing_save_files():
     slow_print('The following files are present:')
   for save_file in get_existing_save_files():
-    slow_print(f' - {save_file}')
+    slow_print(f' - {save_file} ({datetime.fromtimestamp(getmtime(pjoin(save_path, save_file + ".pkl"))).strftime("%m/%d/%Y %H:%M:%S")})')
 
 def save_game(player, labyrinth):
   while True:

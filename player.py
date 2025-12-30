@@ -17,7 +17,7 @@ level_to_xp_map = {
   2: 100,
   3: 300,
   4: 700,
-  5: 1400
+  5: 1500
 }
 attribute_points_per_level = 4
 health_per_con_point = 3
@@ -111,11 +111,11 @@ class PlayerInventory:
 
   def print_item_enumeration_amount_and_price(self):
     for i, item in enumerate(self.items):
-      slow_print(f' - [{i+1}] : {item.name} (Quantity: {self.items[item]}) ({item.price} g)')
+      slow_print(f' - [{i+1}] : {item.name} (Quantity: {self.items[item]}) ({item.price} Fe)')
 
 class Player:
   def __init__(self, start_location):
-    self.gold = 0
+    self.iron = 0
     self.inventory = PlayerInventory()
     self.weapons = set()
     self.spells = set()
@@ -139,10 +139,9 @@ class Player:
       'run'    : self.run
     }
     self.attributes = {
-      'STR' : 10,
-      'INT' : 10,
-      'CON' : 10,
-      'DEX' : 10
+      'LUM' : 10,
+      'SIZ' : 10,
+      'VEL' : 10
     }
     self.level = slow_input(
       f'Player starting level [{list(level_to_xp_map.keys())[0]} - {list(level_to_xp_map.keys())[-1]}]:',
@@ -207,11 +206,11 @@ class Player:
         slow_print(f'There are {len(room.treasure)} chest(s) in the room. You start opening...')
         while room.treasure:
           chest = room.treasure.pop(0)
-          slow_print(f'You open a {chest.size} chest and find {chest.gold} gold!')
+          slow_print(f'You open a {chest.size} chest and find {chest.iron} iron!')
           if chest.item:
             slow_print(f'You also find {chest.item.name} inside!')
             self.inventory.add_item(chest.item)
-          self.gold += chest.gold
+          self.iron += chest.iron
       else:
         slow_print('There are no chests in the room.')
     else:
@@ -227,9 +226,17 @@ class Player:
 
   def use_item(self, *args):
     if self.inventory.items:
-      slow_print('Which item would you like to use? ')
+      slow_print('Which item would you like to use? [enter # of item or (c)ancel]')
       self.inventory.print_item_enumeration_description_and_amount()
-      idx = slow_input('', int, allowable_inputs=list(range(1, len(self.inventory.items)+1)))
+      idx = slow_input(
+        '',
+        shorthand_map={'c' : 'cancel'},
+        allowable_inputs=[str(i) for i in range(1, len(self.inventory.items)+1)] + ['cancel']
+      )
+      if idx == 'cancel':
+        return
+      else:
+        idx = int(idx)
       item = self.inventory.get_item_by_enumeration(idx)
       if isinstance(item, Item):
         if item.is_usable(self):
@@ -311,7 +318,7 @@ class Player:
     slow_print(f' - XP    : {self.experience_points}')
     slow_print(f' - AP    : {self.attribute_points}')
     slow_print(f' - HP    : {self.hp}/{self.max_hp}')
-    slow_print(f' - Gold  : {self.gold}')
+    slow_print(f' - Iron  : {self.iron}')
     if self.inventory.items:
       slow_print('ITEMS')
       self.inventory.print_item_enumeration_description_and_amount()
@@ -334,9 +341,9 @@ class Player:
     if self.attribute_points > 0:
       while self.attribute_points > 0:
         choice = slow_input(
-          'What attribute would you like to increase? [(s)tr, (i)nt, (c)on, (d)ex, (f)inish]',
-          shorthand_map={'s' : 'str', 'i' : 'int', 'c' : 'con', 'd' : 'dex', 'f' : 'finish'},
-          allowable_inputs=['str', 'int', 'con', 'dex', 'finish']
+          'What attribute would you like to increase? [(l)um, (s)iz, (v)el, (f)inish]',
+          shorthand_map={'l' : 'lum', 's' : 'siz', 'v' : 'vel', 'f' : 'finish'},
+          allowable_inputs=['lum', 'siz', 'vel', 'finish']
         )
         if choice == 'finish':
           break
@@ -348,7 +355,7 @@ class Player:
         )
         self.attributes[choice] += amount
         self.attribute_points -= amount
-        if choice == 'CON':
+        if choice == 'SIZ':
           self.hp += amount * health_per_con_point
         slow_print(f'{choice} is increased to {self.attributes[choice]}. You have {self.attribute_points} points left.')
       self.assign_max_hp()
@@ -367,7 +374,7 @@ class Player:
         if buy_or_sell == 'buy':
           slow_print('The following items are available:')
           for i, item in enumerate(room.items):
-            slow_print(f' - [{i+1}] : {item.name} ({item.describe()}) ({item.price} g)')
+            slow_print(f' - [{i+1}] : {item.name} ({item.describe()}) ({item.price} Fe)')
           while True:
             choice = slow_input(
               'Which would you like to buy? [# or (r)eturn]',
@@ -395,14 +402,14 @@ class Player:
                   slow_print(f'You have already purchased {item.name}!')
                   continue
               if 0 <= choice < len(room.items):
-                if self.gold >= item.price:
-                  slow_print(f'You purchase {item.name} for {item.price} g...')
+                if self.iron >= item.price:
+                  slow_print(f'You purchase {item.name} for {item.price} Fe...')
                   self.inventory.add_item(item)
-                  self.gold -= item.price
-                  slow_print(f'Remaining gold: {self.gold}')
+                  self.iron -= item.price
+                  slow_print(f'Remaining iron: {self.iron}')
                   continue
                 else:
-                  slow_print("You don't have enough gold for that!")
+                  slow_print("You don't have enough iron for that!")
                   continue
               slow_print('That item is not available!')
             else:
@@ -431,10 +438,10 @@ class Player:
                   if sum(v if isinstance(k, MeleeWeapon) else 0 for k, v in self.inventory.items.items()) == 1:
                     slow_print("You can't sell your last weapon!")
                     continue
-                slow_print(f'You sell {item.name} for {item.price} g...')
-                self.gold += item.price
+                slow_print(f'You sell {item.name} for {item.price} Fe...')
+                self.iron += item.price
                 self.inventory.remove_item(item)
-                slow_print(f'Gold: {self.gold}')
+                slow_print(f'Iron: {self.iron}')
               else:
                 slow_print('That item is not available!')
                 continue
@@ -484,22 +491,21 @@ class Player:
     save_game(self, labyrinth)
 
   def get_AC(self):
-    return 10 + self.get_attribute_modifier('DEX')
+    return 10 + self.get_attribute_modifier('VEL')
 
   def roll_initiative(self):
-    return randint(1, 20) + self.get_attribute_modifier('DEX')
+    return randint(1, 20) + self.get_attribute_modifier('VEL')
 
   def assign_max_hp(self):
-    self.max_hp = self.attributes['CON'] * health_per_con_point
+    self.max_hp = self.attributes['SIZ'] * health_per_con_point
 
 class Fighter(Player):
   def __init__(self, start_location):
     super().__init__(start_location)
-    self.attributes['STR'] += 2
-    self.attributes['INT'] -= 2
-    self.attributes['CON'] += 2
-    self.attributes['DEX'] += 2
-    self.hp = self.attributes['CON'] * health_per_con_point
+    self.attributes['LUM'] += 2
+    self.attributes['SIZ'] += 2
+    self.attributes['VEL'] += 2
+    self.hp = self.attributes['SIZ'] * health_per_con_point
     self.assign_max_hp()
     self.inventory.add_item(StarShard())
     self.weapons.add(StarShard())
@@ -516,14 +522,14 @@ class Fighter(Player):
     if _monster.hp <= 0:
       slow_print(f'{_monster.name} has died!')
       self.experience_points += _monster.xp_worth
-      if _monster.gold:
-        slow_print(f'You pick up {_monster.gold} gold from the corpse...')
-        self.gold += _monster.gold
+      if _monster.iron:
+        slow_print(f'You pick up {_monster.iron} iron from the corpse...')
+        self.iron += _monster.iron
       monsters.pop(idx-1)
 
   def attack(self, monster):
-    if randint(1, 20) + self.get_attribute_modifier('STR') >= monster.AC:
-      damage = self.equipped_weapon.roll_damage() + self.equipped_weapon.attack_bonus + self.get_attribute_modifier('STR')
+    if randint(1, 20) + self.get_attribute_modifier('LUM') >= monster.AC:
+      damage = self.equipped_weapon.roll_damage() + self.equipped_weapon.attack_bonus + self.get_attribute_modifier('LUM')
       slow_print(f'You inflict {damage} damage on {monster.name}!')
       monster.hp = max(0, monster.hp - damage)
     else:
@@ -539,10 +545,9 @@ class Fighter(Player):
 class Mage(Player):
   def __init__(self, start_location):
     super().__init__(start_location)
-    self.attributes['STR'] -= 2
-    self.attributes['INT'] += 8
-    self.attributes['CON'] -= 2
-    self.hp = self.attributes['CON'] * health_per_con_point
+    self.attributes['LUM'] += 8
+    self.attributes['SIZ'] -= 2
+    self.hp = self.attributes['SIZ'] * health_per_con_point
     self.assign_max_hp()
     self.spells.add(SolarFlare())
 
@@ -568,9 +573,9 @@ class Mage(Player):
           monsters.pop(i)
 
   def attack(self, monsters, spell):
-    damage = spell.roll_damage() + self.get_attribute_modifier('INT')
+    damage = spell.roll_damage() + self.get_attribute_modifier('LUM')
     for monster in monsters:
-      if randint(1, 20) + self.get_attribute_modifier('INT') >= monster.AC:
+      if randint(1, 20) + self.get_attribute_modifier('LUM') >= monster.AC:
         slow_print(f'You inflict {damage} damage on {monster.name}!')
         monster.hp = max(0, monster.hp - damage)
       else:

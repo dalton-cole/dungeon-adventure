@@ -3,13 +3,13 @@
 from random import choices, randint, random
 from print import slow_print
 from monsters import available_monsters
-from items import Elixir
+from items import Elixir, SuperElixir, MegaElixir
 from weapons import VegaBlade, CygnusHammer
 from spells import Eclipse, Supernova
 
 
 chest_sizes = ['small', 'medium', 'large', 'huge']
-chest_size_to_gold = {
+chest_size_to_iron = {
   'small'  : 100,
   'medium' : 500,
   'large'  : 1000,
@@ -21,8 +21,8 @@ max_number_monsters_per_room = 2
 class TreasureChest:
   def __init__(self):
     self.size = choices(chest_sizes, weights=[0.5, 0.3, 0.15, 0.05])[0]
-    self.gold = chest_size_to_gold[self.size]
-    self.item = Elixir() if random() > 0.5 else None
+    self.iron = chest_size_to_iron[self.size]
+    self.item = choices([None, Elixir(), SuperElixir(), MegaElixir()], weights=[0.5, 0.45, 0.04, 0.01])[0]
 
 class Room:
   def __init__(self, doors):
@@ -53,6 +53,8 @@ class MerchantRoom(Room):
   def generate(self):
     self.items = [
       Elixir(),
+      SuperElixir(),
+      MegaElixir(),
       VegaBlade(),
       CygnusHammer(),
       Eclipse(),
@@ -60,7 +62,7 @@ class MerchantRoom(Room):
     ]
   def describe(self):
     slow_print('A figure in a dark robe is hunched in the corner.')
-    slow_print('"Gold for wares..." is heard in a steely voice.')
+    slow_print('"Iron for wares..." is heard in a steely voice.')
 
 class Map:
   def __init__(self, size, fill_value=None):
