@@ -11,7 +11,7 @@ save_path = pjoin(dirname(__file__), '.saves')
 def get_existing_save_files():
   if not exists(save_path):
     mkdir(save_path)
-  return sorted([int(f.split('.')[0]) for f in listdir(save_path) if f.endswith('.pkl')])
+  return sorted([f.split('.')[0] for f in listdir(save_path) if f.endswith('.pkl')])
 
 def print_existing_save_files():
   if get_existing_save_files():
@@ -72,3 +72,6 @@ def edit_save_data(*args):
         break
   else:
     slow_print('Save data not modified.')
+
+def autosave(player, labyrinth):
+  save_data([player, labyrinth, options], pjoin(save_path, 'autosave.pkl'))

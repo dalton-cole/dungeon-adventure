@@ -31,4 +31,4 @@ class Elixir(Item):
     slow_print(f'Current HP: {player.hp}')
 
   def describe(self):
-    return 'Consumable heals 2d4+2 HP'
+    return 'Consumable : +2d4+2 HP'

@@ -306,13 +306,17 @@ class Player:
     return self.attributes[attr] - 10
 
   def check(self, *args):
-    slow_print(f'You have {self.gold} gold and {self.experience_points} experience (level {self.level})!')
-    slow_print(f'Your current HP is {self.hp}/{self.max_hp}.')
+    slow_print('STATS')
+    slow_print(f' - Level : {self.level}')
+    slow_print(f' - XP    : {self.experience_points}')
+    slow_print(f' - AP    : {self.attribute_points}')
+    slow_print(f' - HP    : {self.hp}/{self.max_hp}')
+    slow_print(f' - Gold  : {self.gold}')
     if self.inventory.items:
-      slow_print('You have the following items:')
+      slow_print('ITEMS')
       self.inventory.print_item_enumeration_description_and_amount()
     if self.map is not None:
-      slow_print('This is what your map looks like:')
+      slow_print('MAP')
       tmp_map = deepcopy(self.map)
       tmp_map.set_location(self.location, '*')
       slow_print(f'┌{"───┬" * (tmp_map.size - 1)}───┐')
@@ -324,7 +328,7 @@ class Player:
           slow_print(f'├{"───┼" * (tmp_map.size - 1)}───┤')
     slow_print('ATTRIBUTES')
     for attr, val in self.attributes.items():
-      slow_print(f'{attr} : {val:>2d} ({self.get_attribute_modifier(attr):+d})')
+      slow_print(f' - {attr} : {val:>2d} ({self.get_attribute_modifier(attr):+d})')
 
   def assign_attribute_points(self, *args):
     if self.attribute_points > 0:
@@ -527,10 +531,10 @@ class Fighter(Player):
 
   def check(self, *args):
     super().check()
-    slow_print('You have the following weapons:')
+    slow_print('WEAPONS')
     for weapon in self.weapons:
       slow_print(f' - {weapon.name}')
-    slow_print(f'Your currently equipped weapon is {self.equipped_weapon.name}.')
+    slow_print(f'EQUIPPED WEAPON : {self.equipped_weapon.name}.')
 
 class Mage(Player):
   def __init__(self, start_location):
@@ -574,6 +578,6 @@ class Mage(Player):
 
   def check(self, *args):
     super().check()
-    slow_print('You have the following spells:')
+    slow_print('SPELLS')
     for spell in self.spells:
       slow_print(f' - {spell.name}')

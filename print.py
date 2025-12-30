@@ -4,27 +4,40 @@ from time import sleep
 
 
 options = {
-  'text delay' : 0.015
+  'text delay' : 0.008,
+  'autosave'   : False
+}
+
+option_units = {
+  'text delay' : 's',
+  'autosave'   : None
 }
 
 option_ranges = {
   'text delay' : (0, 0.1)
 }
 
+option_conversion_functions = {
+  'text delay' : float,
+  'autosave'   : lambda x: True if x == '1' else False
+}
+
 option_check_functions = {
-  'text delay' : lambda x: option_ranges['text delay'][0] <= x < option_ranges['text delay'][1]
+  'text delay' : lambda x: option_ranges['text delay'][0] <= x < option_ranges['text delay'][1],
+  'autosave'   : lambda x: isinstance(x, bool)
 }
 
 def print_settings():
   slow_print('Current options:')
-  slow_print(f"Character print delay: {options['text delay']:n} s")
+  for k, v in options.items():
+    slow_print(f' - {k} : {v} {option_units[k] if option_units[k] is not None else ""}')
 
 def set_options(*args):
   print_settings()
   while True:
     slow_print('Which option would you like to change? [enter # of option to change or (d)one]')
     slow_print('You can change the following options:')
-    for i, k in enumerate([options]):
+    for i, k in enumerate(options):
       slow_print(f' - [{i+1}] : {k}')
     choice = slow_input('', shorthand_map={'d' : 'done'})
     if choice != 'done':
@@ -35,12 +48,7 @@ def set_options(*args):
         slow_print('Unrecognized command!')
         continue
       if 0 <= choice < len(options):
-        value = slow_input('What value would you like to set?')
-        try:
-          value = float(value)
-        except:
-          slow_print("You can't set that value!")
-          continue
+        value = slow_input('What value would you like to set?', fn=option_conversion_functions[choice_key])
         if option_check_functions[choice_key](value):
           options[choice_key] = value
           slow_print(f'Option {choice_key} has been set to {list(options.values())[choice]}!')

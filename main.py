@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 from os.path import exists, join as pjoin
-from save import save_path, load_data, print_existing_save_files, get_existing_save_files
-from print import slow_print, slow_input, set_options_from_dict
+from save import save_path, load_data, print_existing_save_files, get_existing_save_files, autosave
+from print import slow_print, slow_input, set_options_from_dict, options
 from player import Fighter, Mage
 from dungeon import Labyrinth
 
@@ -23,6 +23,8 @@ def game_loop(player, labyrinth):
   labyrinth.get_room(player.location).describe()
   while any(room.monsters for room in labyrinth.map.ravel()):
     player.action(labyrinth)
+    if options['autosave']:
+      autosave(player, labyrinth)
   slow_print('You defeated all monsters! A portal to home opens...you win!')
 
 if __name__ == '__main__':
@@ -35,7 +37,7 @@ if __name__ == '__main__':
     elif choice == 'load':
       if get_existing_save_files():
         print_existing_save_files()
-        slot = slow_input('Please enter the save slot number:', int, allowable_inputs=get_existing_save_files())
+        slot = slow_input('Please enter the save slot to load:', allowable_inputs=get_existing_save_files())
         p = pjoin(save_path, f'{slot}.pkl')
         if exists(p):
           the_player, the_labyrinth, saved_options = load_data(p)
