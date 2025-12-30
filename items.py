@@ -44,14 +44,14 @@ class SuperElixir(Item):
     return player.hp < player.max_hp
 
   def use(self, player):
-    heal_amount = (2 * randint(1, 8)) + 4
+    heal_amount = (4 * randint(1, 4)) + 4
     new_hp = min(player.max_hp, player.hp + heal_amount)
     slow_print(f'You heal {new_hp - player.hp} hp!')
     player.hp = new_hp
     slow_print(f'Current HP: {player.hp}')
 
   def describe(self):
-    return 'Consumable : +2d8+4 HP'
+    return 'Consumable : +4d4+4 HP'
 
 class MegaElixir(Item):
   def __init__(self):
@@ -64,11 +64,11 @@ class MegaElixir(Item):
     return player.hp < player.max_hp
 
   def use(self, player):
-    heal_amount = (4 * randint(1, 8)) + 6
+    heal_amount = (6 * randint(1, 4)) + 6
     new_hp = min(player.max_hp, player.hp + heal_amount)
     slow_print(f'You heal {new_hp - player.hp} hp!')
     player.hp = new_hp
     slow_print(f'Current HP: {player.hp}')
 
   def describe(self):
-    return 'Consumable : +4d8+6 HP'
+    return 'Consumable : +6d4+6 HP'

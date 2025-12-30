@@ -372,6 +372,7 @@ class Player:
       )
       if buy_or_sell != 'leave':
         if buy_or_sell == 'buy':
+          slow_print(f'Current iron: {self.iron} Fe')
           slow_print('The following items are available:')
           for i, item in enumerate(room.items):
             slow_print(f' - [{i+1}] : {item.name} ({item.describe()}) ({item.price} Fe)')
@@ -478,7 +479,7 @@ class Player:
 
   def escape_check(self, monsters):
     avg_monster_initiative = sum(monster.roll_initiative() for monster in monsters) / len(monsters)
-    return self.roll_initiative() > avg_monster_initiative
+    return self.roll_initiative() >= avg_monster_initiative
 
   def check_level_up(self):
     if self.level < 5:
@@ -530,8 +531,8 @@ class Fighter(Player):
   def attack(self, monster):
     if randint(1, 20) + self.get_attribute_modifier('LUM') >= monster.AC:
       damage = self.equipped_weapon.roll_damage() + self.equipped_weapon.attack_bonus + self.get_attribute_modifier('LUM')
-      slow_print(f'You inflict {damage} damage on {monster.name}!')
       monster.hp = max(0, monster.hp - damage)
+      slow_print(f'You inflict {damage} damage on {monster.name} (HP : {monster.hp}/{monster.max_hp})!')
     else:
       slow_print('Oh no! You missed...')
 

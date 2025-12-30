@@ -39,10 +39,10 @@ class WhiteDwarf(Monster):
     self.attributes = {
       'LUM' : 10,
       'SIZ' : 4,
-      'VEL' : 8
+      'VEL' : 10
     }
     super().__init__()
-    self.AC = 10
+    self.AC = 8
     self.max_damage = 4
     self.name = "White Dwarf"
     self.xp_worth = 30
@@ -53,27 +53,46 @@ class GasGiant(Monster):
     self.attributes = {
       'LUM' : 12,
       'SIZ' : 6,
-      'VEL' : 10
+      'VEL' : 8
     }
     super().__init__()
-    self.AC = 14
+    self.AC = 12
     self.max_damage = 6
     self.name = "Gas Giant"
     self.xp_worth = 100
     self.iron = randint(2, 5) * 100
+
+class DarkMatter(Monster):
+  def __init__(self):
+    self.attributes = {
+      'LUM' : 14,
+      'SIZ' : 8,
+      'VEL' : 10
+    }
+    super().__init__()
+    self.AC = 14
+    self.max_damage = 8
+    self.name = "Dark Matter"
+    self.xp_worth = 500
+    self.iron = randint(3, 7) * 100
 
 class StellarWyrm(Monster):
   def __init__(self):
     self.attributes = {
       'LUM' : 16,
       'SIZ' : 10,
-      'VEL' : 12
+      'VEL' : 8
     }
     super().__init__()
-    self.AC = 18
-    self.max_damage = 12
+    self.AC = 16
+    self.max_damage = 10
     self.name = "Stellar Wyrm"
     self.xp_worth = 1000
     self.iron = randint(5, 10) * 100
 
-available_monsters = [WhiteDwarf, GasGiant, StellarWyrm]
+available_monsters = {
+  WhiteDwarf  : 0.4,
+  GasGiant    : 0.3,
+  DarkMatter  : 0.2,
+  StellarWyrm : 0.1
+}
