@@ -36,19 +36,21 @@ class TreasureChest:
     self.item = choices([None, Elixir(), SuperElixir(), MegaElixir()], weights=chest_size_to_item_weights[self.size])[0]
 
 class Room:
-  def __init__(self, doors):
+  def __init__(self, doors, dist_frac):
     self.doors = doors
     self.monsters = []
     self.treasure = []
-    self.generate()
+    self.generate(dist_frac)
 
 class NormalRoom(Room):
-  def generate(self):
+  def generate(self, dist_frac):
     for _ in range(randint(0, max_chests_per_room)):
       self.treasure.append(TreasureChest())
     for _ in range(randint(0, max_number_monsters_per_room)):
-      self.monsters.append(choices(list(available_monsters.keys()), weights=list(available_monsters.values()))[0]())
-  def describe(self):
+      modified_weights = [v * dist_frac if idx > 1 else v for idx, v in enumerate(available_monsters.values())]
+      modified_weights = [v / sum(modified_weights) for v in modified_weights]
+      self.monsters.append(choices(list(available_monsters.keys()), weights=modified_weights)[0]())
+  def describe(self, player):
     slow_print(f'You are in a room with:')
     slow_print(f' - {len(self.doors)} doors')
     for door in self.doors:
@@ -61,7 +63,7 @@ class NormalRoom(Room):
       slow_print(f'   - {monster.name}')
 
 class MerchantRoom(Room):
-  def generate(self):
+  def generate(self, dist_frac):
     self.items = [
       Elixir(),
       SuperElixir(),
@@ -71,9 +73,24 @@ class MerchantRoom(Room):
       Eclipse(),
       Supernova()
     ]
-  def describe(self):
-    slow_print('A figure in a dark robe is hunched in the corner.')
-    slow_print('"Iron for wares..." is heard in a steely voice.')
+  def describe(self, player):
+    slow_print('Pinpricks of light gaze through you from the void.')
+    slow_print('"Iron for wares..."')
+    slow_print('The voice rends the silence and shakes your core...')
+
+class NebulaRoom(Room):
+  def generate(self, dist_frac):
+    self.AP = randint(3, 8)
+    self.done = False
+  def describe(self, player):
+    slow_print('You are in a silent nursery of power...')
+    slow_print('A low hum accompanies the tiny points of light that surround you.')
+    if not self.done:
+      slow_print('You feel that light inhabit your corporeal form...')
+      slow_print(f'You heal fully and gain {self.AP} AP!')
+      player.hp = player.max_hp
+      player.attribute_points += self.AP
+      self.done = True
 
 class Map:
   def __init__(self, size, fill_value=None):
@@ -91,8 +108,9 @@ class Map:
 
 class Labyrinth:
   def __init__(self, size):
+    self.size = size
+    self.start_location = [randint(0, self.size-1), randint(0, self.size-1)]
     while True:
-      self.size = size
       self.map = Map(self.size)
       for i in range(self.size):
         for j in range(self.size):
@@ -105,13 +123,10 @@ class Labyrinth:
             doors.append('west')
           if j+1 < self.size:
             doors.append('east')
-          if random() < 0.1:
-            self.map.set_location((i, j), MerchantRoom(doors))
-          else:
-            self.map.set_location((i, j), NormalRoom(doors))
+          distance_fraction = ((abs(i - self.start_location[0])**2 + abs(j - self.start_location[1])**2)**0.5) / ((self.size-1) * 2**0.5)
+          self.map.set_location((i, j), choices([NormalRoom, MerchantRoom, NebulaRoom], [0.8, 0.1, 0.1])[0](doors, distance_fraction))
       if any([room.monsters for room in self.map.ravel()]) and any([isinstance(room, MerchantRoom) for room in self.map.ravel()]):
         break
-    self.start_location = [randint(0, size-1), randint(0, size-1)]
 
   def get_room(self, location):
     return self.map.get_location(location)

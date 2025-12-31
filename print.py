@@ -72,7 +72,11 @@ def slow_print(msg):
 def slow_input(msg, fn=str, shorthand_map={}, allowable_inputs=[]):
   while True:
     slow_print(msg)
-    inp = fn(input('').lower().strip())
+    try:
+      inp = fn(input('').lower().strip())
+    except:
+      slow_print(f'Input not allowed! Try again...')
+      continue
     if shorthand_map:
       inp = shorthand_map[inp] if inp in shorthand_map else inp
     if allowable_inputs:

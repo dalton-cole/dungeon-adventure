@@ -5,22 +5,18 @@ from print import slow_print, slow_input, set_options
 from save import save_game, edit_save_data
 from copy import deepcopy
 from collections import defaultdict
-from monsters import Monster
-from dungeon import NormalRoom, MerchantRoom, Map
+from monsters import Monster, health_per_con_point
+from dungeon import NormalRoom, MerchantRoom, NebulaRoom, Map
 from weapons import MeleeWeapon, StarShard
 from spells import AttackSpell, SolarFlare
 from items import Item
 
 
-level_to_xp_map = {
-  1: 0,
-  2: 100,
-  3: 300,
-  4: 700,
-  5: 1500
-}
+level_to_xp_map = {1 : 0}
+max_level = 10
+for i in range(2, max_level+1):
+  level_to_xp_map[i] = round(level_to_xp_map[i-1] + 100*(1.7**(i-2)))
 attribute_points_per_level = 4
-health_per_con_point = 3
 
 allowable_actions = [
   '(f)ight',
@@ -144,9 +140,9 @@ class Player:
       'VEL' : 10
     }
     self.level = slow_input(
-      f'Player starting level [{list(level_to_xp_map.keys())[0]} - {list(level_to_xp_map.keys())[-1]}]:',
+      f'Player starting level [1 - {max_level}]:',
       int,
-      allowable_inputs=list(range(list(level_to_xp_map.keys())[0], list(level_to_xp_map.keys())[-1]+1))
+      allowable_inputs=list(range(1, max_level+1))
     )
     self.experience_points = level_to_xp_map[self.level]
     self.location = start_location
@@ -191,6 +187,8 @@ class Player:
         self.map.set_location(self.location, 'C')
     elif isinstance(room, MerchantRoom):
       self.map.set_location(self.location, 'M')
+    elif isinstance(room, NebulaRoom):
+      self.map.set_location(self.location, 'N')
     self.actions[
       slow_input(
         f'What would you like to do next? [(h)elp]: ',
@@ -218,7 +216,7 @@ class Player:
 
   def look_around(self, labyrinth):
     room = labyrinth.get_room(self.location)
-    room.describe()
+    room.describe(self)
     if isinstance(room, MerchantRoom):
       choice = slow_input('Would you like to talk to the merchant? [y/n]', allowable_inputs=['y', 'n'])
       if choice == 'y':
@@ -307,7 +305,7 @@ class Player:
       slow_print('You do not move.')
       return
     self.location = tuple(loc)
-    labyrinth.get_room(self.location).describe()
+    labyrinth.get_room(self.location).describe(self)
 
   def get_attribute_modifier(self, attr):
     return self.attributes[attr] - 10
@@ -363,7 +361,7 @@ class Player:
       slow_print('You do not have any points to assign!')
 
   def shop(self, room: MerchantRoom):
-    slow_print('You approach the merchant...')
+    slow_print('You approach the points of light...')
     while True:
       buy_or_sell = slow_input(
         'Would you like to do? [(b)uy/(s)ell/(l)eave]',
@@ -450,7 +448,7 @@ class Player:
               break
       else:
         break
-    slow_print('The merchant nods and returns to his business.')
+    slow_print('The points of light dim and flicker.')
     self.weapons = set()
     for item in self.inventory.items:
       if isinstance(item, MeleeWeapon):
@@ -482,7 +480,7 @@ class Player:
     return self.roll_initiative() >= avg_monster_initiative
 
   def check_level_up(self):
-    if self.level < 5:
+    if self.level < max_level:
       if self.experience_points > level_to_xp_map[self.level+1]:
         self.level += 1
         self.attribute_points += attribute_points_per_level
@@ -546,8 +544,9 @@ class Fighter(Player):
 class Mage(Player):
   def __init__(self, start_location):
     super().__init__(start_location)
-    self.attributes['LUM'] += 8
+    self.attributes['LUM'] += 6
     self.attributes['SIZ'] -= 2
+    self.attributes['VEL'] += 2
     self.hp = self.attributes['SIZ'] * health_per_con_point
     self.assign_max_hp()
     self.spells.add(SolarFlare())
