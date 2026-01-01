@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-from random import choices, randint, random
+from random import choices, randint
+from string import ascii_uppercase
+from collections import defaultdict
 from print import slow_print
 from monsters import available_monsters
 from items import Elixir, SuperElixir, MegaElixir
@@ -50,6 +52,14 @@ class NormalRoom(Room):
       modified_weights = [v * dist_frac if idx > 1 else v for idx, v in enumerate(available_monsters.values())]
       modified_weights = [v / sum(modified_weights) for v in modified_weights]
       self.monsters.append(choices(list(available_monsters.keys()), weights=modified_weights)[0]())
+      monster_dict = defaultdict(int)
+      for monster in self.monsters:
+        monster_dict[monster.name] += 1
+      for k, v in monster_dict.items():
+        if v > 1:
+          for monster, letter in zip(self.monsters, ascii_uppercase):
+            if monster.name == k:
+              monster.name += f' {letter}'
   def describe(self, player):
     slow_print(f'You are in a room with:')
     slow_print(f' - {len(self.doors)} doors')
