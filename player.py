@@ -28,7 +28,6 @@ allowable_actions = [
   '(q)uit'
 ]
 action_shorthand_map = {
-  'h' : 'help',
   'f' : 'fight',
   'l' : 'look',
   'm' : 'move',
@@ -54,13 +53,8 @@ movement_shorthand_map = {
 }
 
 def quit_game(*args):
-  slow_print('See you next time!')
+  slow_print('You cease your endeavor.')
   exit()
-
-def print_help(*args):
-  slow_print('The following actions are available:')
-  for action in allowable_actions:
-    slow_print(f' - {action}')
 
 class MovementError(Exception):
   def __init__(self, message):
@@ -107,7 +101,6 @@ class Player:
     self.weapons = set()
     self.spells = set()
     self.actions = {
-      'help'  : print_help,
       'fight' : self.battle,
       'look'  : self.look_around,
       'move'  : self.move,
@@ -167,7 +160,7 @@ class Player:
                 return
       self.check_level_up()
     elif isinstance(room, MerchantRoom):
-      slow_print('You challenge the points of light that stare into you.')
+      slow_print('You challenge the ring of light.')
       slow_print('Suddenly you are small, and you gaze up at something your mind cannot fathom...')
       room.monsters = [BlackHole()]
       room.items = None
@@ -175,7 +168,7 @@ class Player:
       if not room.monsters:
         room.not_defeated = False
     else:
-      slow_print('There are no monsters to fight...')
+      slow_print('There is nothing to fight...')
 
   def action(self, labyrinth):
     if self.map is None:
@@ -215,14 +208,14 @@ class Player:
       else:
         slow_print('There are no chests in the room.')
     else:
-      slow_print('You cannot open chests because the monsters are in the way!')
+      slow_print('Enemies block the treasure...')
 
   def look_around(self, labyrinth):
     room = labyrinth.get_room(self.location)
     room.describe(self)
     if isinstance(room, MerchantRoom):
       if room.not_defeated:
-        choice = slow_input('Would you like to talk to the merchant? [y/n]', allowable_inputs=['y', 'n'])
+        choice = slow_input('Do you address the halo of light? [y/n]', allowable_inputs=['y', 'n'])
         if choice == 'y':
           self.shop(room)
 
@@ -261,7 +254,7 @@ class Player:
         slow_print("You can't go that way!")
         self.action(labyrinth)
     else:
-      slow_print('You cannot move because the monsters block your path!')
+      slow_print('Enemies block your path!')
       escape = slow_input('Would you like to attempt to escape? [y/n]', allowable_inputs=['y', 'n'])
       if escape == 'y':
         if self.escape_check(room.monsters):
@@ -413,7 +406,7 @@ class Player:
       slow_print('You do not have any points to assign!')
 
   def shop(self, room: MerchantRoom):
-    slow_print('You approach the points of light...')
+    slow_print('You approach the warping light...')
     while True:
       buy_or_sell = slow_input(
         'Would you like to do? [(b)uy/(s)ell/(l)eave]',
@@ -500,7 +493,7 @@ class Player:
               break
       else:
         break
-    slow_print('The points of light dim and flicker.')
+    slow_print('The ring of light dims and flickers...')
     self.weapons = set()
     for item in self.inventory.items:
       if isinstance(item, MeleeWeapon):
@@ -572,7 +565,7 @@ class Fighter(Player):
     self.equipped_weapon = list(self.weapons)[0]
 
   def attack_action(self, labyrinth, monsters):
-    slow_print('Which monster do you attack? ')
+    slow_print('Which enemy do you attack? ')
     for i, monster in enumerate(monsters):
       if monster.hp > 0:
         slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
@@ -583,7 +576,7 @@ class Fighter(Player):
       slow_print(f'{_monster.name} has died!')
       self.experience_points += _monster.xp_worth
       if _monster.iron:
-        slow_print(f'You pick up {_monster.iron} iron from the corpse...')
+        slow_print(f'You pick up {_monster.iron} iron...')
         self.iron += _monster.iron
       monsters.pop(idx-1)
 
@@ -593,7 +586,7 @@ class Fighter(Player):
       monster.hp = max(0, monster.hp - damage)
       slow_print(f'You inflict {damage} damage on {monster.name} (HP : {monster.hp}/{monster.max_hp})!')
     else:
-      slow_print('Oh no! You missed...')
+      slow_print(f'You missed {monster.name}...')
 
 class Mage(Player):
   def __init__(self, start_location):
@@ -611,7 +604,7 @@ class Mage(Player):
       slow_print(f' - [{i+1}] : {spell.name}')
     chosen_spell = list(self.spells)[slow_input('', int, allowable_inputs=list(range(1, len(self.spells)+1)))-1]
     if chosen_spell.range == 'single':
-      slow_print('Which monster do you attack?')
+      slow_print('Which enemy do you attack?')
       for i, monster in enumerate(monsters):
         if monster.hp > 0:
           slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
@@ -633,4 +626,4 @@ class Mage(Player):
         slow_print(f'You inflict {damage} damage on {monster.name}!')
         monster.hp = max(0, monster.hp - damage)
       else:
-        slow_print(f'Oh no! You missed {monster.name}...')
+        slow_print(f'You missed {monster.name}...')

@@ -60,7 +60,7 @@ class NormalRoom(Room):
       for chest in self.treasure:
         slow_print(f'   - a {chest.size} chest')
     if self.monsters:
-      slow_print(f' - {len(self.monsters):n} monsters')
+      slow_print(f' - {len(self.monsters):n} enemies')
     for monster in self.monsters:
       slow_print(f'   - {monster.name}')
 
@@ -78,7 +78,7 @@ class MerchantRoom(Room):
     self.not_defeated = True
   def describe(self, player):
     if self.not_defeated:
-      slow_print('Pinpricks of light gaze through you from the void.')
+      slow_print('A warped halo of light gazes through you from the void.')
       slow_print('"Iron for wares..."')
       slow_print('The voice rends the silence and shakes your core...')
     else:
