@@ -93,15 +93,15 @@ class StellarWyrm(Monster):
 class BlackHole(Monster):
   def __init__(self):
     self.attributes = {
-      'LUM' : 24,
-      'SIZ' : 40,
+      'LUM' : 20,
+      'SIZ' : 30,
       'VEL' : 20
     }
     super().__init__()
     self.AC = 22
-    self.max_damage = 20
+    self.max_damage = 14
     self.name = "Black Hole"
-    self.xp_worth = 100000
+    self.xp_worth = 50000
     self.iron = randint(85, 125) * 100
 
 available_monsters = {

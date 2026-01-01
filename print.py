@@ -8,6 +8,11 @@ options = {
   'autosave'   : False
 }
 
+option_type = {
+  'text delay' : '[enter a floating point value]',
+  'autosave'   : '[enter true or false]'
+}
+
 option_units = {
   'text delay' : 's',
   'autosave'   : None
@@ -19,7 +24,7 @@ option_ranges = {
 
 option_conversion_functions = {
   'text delay' : float,
-  'autosave'   : lambda x: True if x == '1' else False
+  'autosave'   : lambda x: x == 'true'
 }
 
 option_check_functions = {
@@ -48,7 +53,10 @@ def set_options(*args):
         slow_print('Unrecognized command!')
         continue
       if 0 <= choice < len(options):
-        value = slow_input('What value would you like to set?', fn=option_conversion_functions[choice_key])
+        value = slow_input(
+          f'What value would you like to set? {option_type[choice_key]}',
+          fn=option_conversion_functions[choice_key]
+        )
         if option_check_functions[choice_key](value):
           options[choice_key] = value
           slow_print(f'Option {choice_key} has been set to {list(options.values())[choice]}!')
