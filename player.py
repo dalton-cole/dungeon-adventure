@@ -5,6 +5,7 @@ from print import slow_print, slow_input, set_options
 from save import save_game, edit_save_data
 from copy import deepcopy
 from collections import defaultdict
+from math import floor
 from monsters import Monster, BlackHole, health_per_con_point
 from dungeon import NormalRoom, MerchantRoom, NebulaRoom, Map
 from weapons import MeleeWeapon, StarShard
@@ -15,7 +16,7 @@ from items import Item
 level_to_xp_map = {1 : 0}
 max_level = 10
 for i in range(2, max_level+1):
-  level_to_xp_map[i] = round(level_to_xp_map[i-1] + 100*(1.7**(i-2)))
+  level_to_xp_map[i] = round(level_to_xp_map[i-1] + 15*(1.35**(i-2)))
 attribute_points_per_level = 4
 
 allowable_actions = [
@@ -134,6 +135,9 @@ class Player:
     self.map = None
     self.attribute_points = attribute_points_per_level * (self.level - 1)
 
+  def get_attribute_modifier(self, attr):
+    return floor((self.attributes[attr] - 10) / 2)
+
   def battle(self, labyrinth):
     room = labyrinth.get_room(self.location)
     if room.monsters:
@@ -190,7 +194,7 @@ class Player:
       self.map.set_location(self.location, 'N')
     self.actions[
       slow_input(
-        f'What would you like to do next? [(h)elp]: ',
+        f'What would you like to do next? [{", ".join(allowable_actions)}]: ',
         shorthand_map=action_shorthand_map,
         allowable_inputs=self.actions.keys()
       )
@@ -307,9 +311,6 @@ class Player:
     self.location = tuple(loc)
     labyrinth.get_room(self.location).describe(self)
 
-  def get_attribute_modifier(self, attr):
-    return self.attributes[attr] - 10
-
   def menu(self, *args):
     while True:
       choice = slow_input(
@@ -342,7 +343,10 @@ class Player:
       if choice == 'stats':
         slow_print('STATS')
         slow_print(f' - Level : {self.level}')
-        slow_print(f' - XP    : {self.experience_points}')
+        if self.level < max_level:
+          slow_print(f' - XP    : {self.experience_points}/{level_to_xp_map[self.level+1]}')
+        else:
+          slow_print(f' - XP    : {self.experience_points}')
         slow_print(f' - AP    : {self.attribute_points}')
         slow_print(f' - HP    : {self.hp}/{self.max_hp}')
         slow_print(f' - Iron  : {self.iron}')

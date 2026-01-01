@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 from print import slow_print
-from random import randint, random
+from random import randint
+from math import floor
 
 
-health_per_con_point = 3
+health_per_con_point = 2
 
 class Monster:
   def __init__(self):
@@ -12,7 +13,7 @@ class Monster:
     self.assign_max_hp()
 
   def get_attribute_modifier(self, attr):
-    return self.attributes[attr] - 10
+    return floor((self.attributes[attr] - 10) / 2)
 
   def attack(self, player):
     if randint(1, 20) + self.get_attribute_modifier('LUM') >= player.get_AC():
@@ -34,75 +35,84 @@ class Monster:
   def assign_max_hp(self):
     self.max_hp = self.attributes['SIZ'] * health_per_con_point
 
+  def get_challenge_points(self):
+    return self.attributes['LUM'] * self.max_damage / 2 + self.attributes['SIZ'] * health_per_con_point + self.AC
+
+  def get_xp_worth(self):
+    return int(self.get_challenge_points() / 4)
+
+  def get_iron(self):
+    return randint(round(self.xp_worth / 20), round(self.xp_worth / 10)) * 100
+
 class WhiteDwarf(Monster):
   def __init__(self):
     self.attributes = {
       'LUM' : 10,
-      'SIZ' : 4,
+      'SIZ' : 5,
       'VEL' : 10
     }
     super().__init__()
-    self.AC = 8
+    self.AC = 10
     self.max_damage = 4
     self.name = "White Dwarf"
-    self.xp_worth = 30
-    self.iron = randint(1, 3) * 100
+    self.xp_worth = self.get_xp_worth()
+    self.iron = self.get_iron()
 
 class GasGiant(Monster):
   def __init__(self):
     self.attributes = {
       'LUM' : 12,
-      'SIZ' : 6,
+      'SIZ' : 8,
       'VEL' : 8
     }
     super().__init__()
     self.AC = 12
     self.max_damage = 6
     self.name = "Gas Giant"
-    self.xp_worth = 100
-    self.iron = randint(2, 5) * 100
+    self.xp_worth = self.get_xp_worth()
+    self.iron = self.get_iron()
 
 class DarkMatter(Monster):
   def __init__(self):
     self.attributes = {
       'LUM' : 14,
-      'SIZ' : 8,
+      'SIZ' : 12,
       'VEL' : 10
     }
     super().__init__()
     self.AC = 14
     self.max_damage = 8
     self.name = "Dark Matter"
-    self.xp_worth = 500
-    self.iron = randint(3, 7) * 100
+    self.xp_worth = self.get_xp_worth()
+    self.iron = self.get_iron()
 
 class StellarWyrm(Monster):
   def __init__(self):
     self.attributes = {
       'LUM' : 16,
-      'SIZ' : 10,
+      'SIZ' : 15,
       'VEL' : 8
     }
     super().__init__()
     self.AC = 16
     self.max_damage = 10
     self.name = "Stellar Wyrm"
-    self.xp_worth = 1000
-    self.iron = randint(5, 10) * 100
+    self.xp_worth = self.get_xp_worth()
+    self.iron = self.get_iron()
 
 class BlackHole(Monster):
   def __init__(self):
     self.attributes = {
-      'LUM' : 20,
-      'SIZ' : 30,
+      'LUM' : 18,
+      'SIZ' : 25,
       'VEL' : 20
     }
     super().__init__()
-    self.AC = 22
-    self.max_damage = 14
+    self.AC = 18
+    self.max_damage = 12
     self.name = "Black Hole"
-    self.xp_worth = 50000
-    self.iron = randint(85, 125) * 100
+    self.xp_worth = self.get_xp_worth()
+    self.iron = self.get_iron()
 
 available_monsters = {
   WhiteDwarf  : 0.4,
