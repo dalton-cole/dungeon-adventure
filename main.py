@@ -52,11 +52,26 @@ if __name__ == '__main__':
       break
     elif choice == 'load':
       if get_existing_save_files():
+        if 'autosave' in get_existing_save_files():
+          next_choice = slow_input(
+            'Would you like to load the autosave? [y/n]',
+            shorthand_map={'y' : 'yes', 'n' : 'no'},
+            allowable_inputs=['yes', 'no']
+          )
+          if next_choice == 'yes':
+            p = pjoin(save_path, 'autosave.pkl')
+            if exists(p):
+              the_player, the_labyrinth, saved_options = load_data(p)
+              set_options_from_dict(saved_options)
+              break
         print_existing_save_files()
         slot = slow_input(
-          'Please enter the save slot to load:',
-          allowable_inputs=get_existing_save_files()
+          'Please enter the save slot to load [or (r)eturn]:',
+          shorthand_map={'r' : 'return'},
+          allowable_inputs=get_existing_save_files() + ['return']
         )
+        if slot == 'return':
+          continue
         p = pjoin(save_path, f'{slot}.pkl')
         if exists(p):
           the_player, the_labyrinth, saved_options = load_data(p)

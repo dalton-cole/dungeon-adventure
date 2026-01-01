@@ -23,12 +23,7 @@ allowable_actions = [
   '(l)ook/ta(l)k',
   '(m)ove',
   '(o)pen',
-  '(c)heck',
-  '(u)se',
-  '(a)ssign',
-  '(s)ave',
-  'o(p)tions',
-  '(d)ata',
+  'm(e)nu',
   '(q)uit'
 ]
 action_shorthand_map = {
@@ -37,12 +32,7 @@ action_shorthand_map = {
   'l' : 'look',
   'm' : 'move',
   'o' : 'open',
-  'c' : 'check',
-  'u' : 'use',
-  'a' : 'assign',
-  's' : 'save',
-  'p' : 'options',
-  'd' : 'data',
+  'e' : 'menu',
   'q' : 'quit'
 }
 
@@ -53,13 +43,13 @@ battle_action_shorthand_map = {
   'r' : 'run'
 }
 
-allowable_movement_directions = ['north', 'south', 'east', 'west', 'cancel']
+allowable_movement_directions = ['north', 'south', 'east', 'west', 'return']
 movement_shorthand_map = {
   'n' : 'north',
   's' : 'south',
   'e' : 'east',
   'w' : 'west',
-  'c' : 'cancel'
+  'r' : 'return'
 }
 
 def quit_game(*args):
@@ -116,18 +106,13 @@ class Player:
     self.weapons = set()
     self.spells = set()
     self.actions = {
-      'help'    : print_help,
-      'fight'   : self.battle,
-      'look'    : self.look_around,
-      'move'    : self.move,
-      'open'    : self.open,
-      'check'   : self.check,
-      'use'     : self.use_item,
-      'assign'  : self.assign_attribute_points,
-      'save'    : self.save_game,
-      'options' : set_options,
-      'data'    : edit_save_data,
-      'quit'    : quit_game
+      'help'  : print_help,
+      'fight' : self.battle,
+      'look'  : self.look_around,
+      'move'  : self.move,
+      'open'  : self.open,
+      'menu'  : self.menu,
+      'quit'  : quit_game
     }
     self.battle_actions = {
       'attack' : self.attack_action,
@@ -239,14 +224,14 @@ class Player:
 
   def use_item(self, *args):
     if self.inventory.items:
-      slow_print('Which item would you like to use? [enter # of item or (c)ancel]')
+      slow_print('Which item would you like to use? [enter # of item or (r)eturn]')
       self.inventory.print_item_enumeration_description_and_amount()
       idx = slow_input(
         '',
-        shorthand_map={'c' : 'cancel'},
-        allowable_inputs=[str(i) for i in range(1, len(self.inventory.items)+1)] + ['cancel']
+        shorthand_map={'r' : 'return'},
+        allowable_inputs=[str(i) for i in range(1, len(self.inventory.items)+1)] + ['return']
       )
-      if idx == 'cancel':
+      if idx == 'return':
         return
       else:
         idx = int(idx)
@@ -283,7 +268,7 @@ class Player:
           self.battle(labyrinth)
 
   def change_room(self, labyrinth):
-    slow_print('The following doors are available [enter direction or (c)ancel]:')
+    slow_print('The following doors are available [enter direction or (r)eturn]:')
     for door in labyrinth.get_room(self.location).doors:
       slow_print(f'   - a door to the ({door[0]}){door[1:]}')
     loc = list(self.location)
@@ -316,7 +301,7 @@ class Player:
         slow_print(f'You head north and enter the next room...')
       else:
         raise MovementError("Cannot move north!")
-    elif direction == 'cancel':
+    elif direction == 'return':
       slow_print('You do not move.')
       return
     self.location = tuple(loc)
@@ -324,6 +309,28 @@ class Player:
 
   def get_attribute_modifier(self, attr):
     return self.attributes[attr] - 10
+
+  def menu(self, *args):
+    while True:
+      choice = slow_input(
+        'What would you like to do? [(c)heck, (u)se, (a)ssign, (s)ave, (d)ata, (o)ptions, (r)eturn]',
+        shorthand_map={'c' : 'check', 'u' : 'use', 'a' : 'assign', 's' : 'save', 'd' : 'data', 'o' : 'options', 'r' : 'return'},
+        allowable_inputs=['check', 'use', 'assign', 'save', 'data', 'options', 'return']
+      )
+      if choice == 'check':
+        self.check(*args)
+      elif choice == 'use':
+        self.use_item(*args)
+      elif choice == 'assign':
+        self.assign_attribute_points(*args)
+      elif choice == 'save':
+        self.save_game(*args)
+      elif choice == 'data':
+        edit_save_data(*args)
+      elif choice == 'options':
+        set_options(*args)
+      elif choice == 'return':
+        break
 
   def check(self, *args):
     while True:
