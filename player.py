@@ -5,7 +5,7 @@ from print import slow_print, slow_input, set_options
 from save import save_game, edit_save_data
 from copy import deepcopy
 from collections import defaultdict
-from monsters import Monster, health_per_con_point
+from monsters import Monster, BlackHole, health_per_con_point
 from dungeon import NormalRoom, MerchantRoom, NebulaRoom, Map
 from weapons import MeleeWeapon, StarShard
 from spells import AttackSpell, SolarFlare
@@ -150,12 +150,18 @@ class Player:
     self.attribute_points = attribute_points_per_level * (self.level - 1)
 
   def battle(self, labyrinth):
-    if labyrinth.get_room(self.location).monsters:
-      slow_print(f'You face {len(labyrinth.get_room(self.location).monsters)} monster(s)!')
-      for monster in labyrinth.get_room(self.location).monsters:
+    room = labyrinth.get_room(self.location)
+    if room.monsters:
+      slow_print(f'You face {len(room.monsters)} monster(s)!')
+      for monster in room.monsters:
         slow_print(f' - {monster.name} ({monster.hp}/{monster.max_hp} HP)')
-      while labyrinth.get_room(self.location).monsters:
-        turn_order = sorted([self] + labyrinth.get_room(self.location).monsters, key=lambda x: x.roll_initiative())[::-1]
+      turn_order = sorted([self] + room.monsters, key=lambda x: x.roll_initiative())[::-1]
+      while room.monsters:
+        while any(entity.hp == 0 for entity in turn_order):
+          for i in range(len(turn_order)):
+            if turn_order[i].hp == 0:
+              turn_order.pop(i)
+              break
         for entity in turn_order:
           if entity.hp > 0:
             if isinstance(entity, Monster):
@@ -167,10 +173,18 @@ class Player:
                   shorthand_map=battle_action_shorthand_map,
                   allowable_inputs=allowable_battle_actions
                 )
-              ](labyrinth, labyrinth.get_room(self.location).monsters) == 'escaped':
+              ](labyrinth, room.monsters) == 'escaped':
                 self.check_level_up()
                 return
       self.check_level_up()
+    elif isinstance(room, MerchantRoom):
+      slow_print('You challenge the points of light that stare into you.')
+      slow_print('Suddenly you are small, and you gaze up at something your mind cannot fathom...')
+      room.monsters = [BlackHole()]
+      room.items = None
+      self.battle(labyrinth)
+      if not room.monsters:
+        room.not_defeated = False
     else:
       slow_print('There are no monsters to fight...')
 
@@ -218,9 +232,10 @@ class Player:
     room = labyrinth.get_room(self.location)
     room.describe(self)
     if isinstance(room, MerchantRoom):
-      choice = slow_input('Would you like to talk to the merchant? [y/n]', allowable_inputs=['y', 'n'])
-      if choice == 'y':
-        self.shop(room)
+      if room.not_defeated:
+        choice = slow_input('Would you like to talk to the merchant? [y/n]', allowable_inputs=['y', 'n'])
+        if choice == 'y':
+          self.shop(room)
 
   def use_item(self, *args):
     if self.inventory.items:
@@ -311,33 +326,59 @@ class Player:
     return self.attributes[attr] - 10
 
   def check(self, *args):
-    slow_print('STATS')
-    slow_print(f' - Level : {self.level}')
-    slow_print(f' - XP    : {self.experience_points}')
-    slow_print(f' - AP    : {self.attribute_points}')
-    slow_print(f' - HP    : {self.hp}/{self.max_hp}')
-    slow_print(f' - Iron  : {self.iron}')
-    if self.inventory.items:
-      slow_print('ITEMS')
-      self.inventory.print_item_enumeration_description_and_amount()
-    if self.map is not None:
-      slow_print('MAP')
-      tmp_map = deepcopy(self.map)
-      tmp_map.set_location(self.location, '*')
-      slow_print(f'┌{"───┬" * (tmp_map.size - 1)}───┐')
-      for i in range(tmp_map.size):
-        slow_print(f'│ {" ┆ ".join([c for c in tmp_map.map[i]])} │')
-        if i+1 == tmp_map.size:
-          slow_print(f'└{"───┴" * (tmp_map.size - 1)}───┘')
+    while True:
+      choice = slow_input(
+        'What would you like to check? [(s)tats, (i)tems, (m)ap, (a)ttacks, (r)eturn]',
+        shorthand_map={'s' : 'stats', 'i' : 'items', 'm' : 'map', 'a' : 'attacks', 'r' : 'return'},
+        allowable_inputs=['stats', 'items', 'map', 'attacks', 'return']
+      )
+      if choice == 'stats':
+        slow_print('STATS')
+        slow_print(f' - Level : {self.level}')
+        slow_print(f' - XP    : {self.experience_points}')
+        slow_print(f' - AP    : {self.attribute_points}')
+        slow_print(f' - HP    : {self.hp}/{self.max_hp}')
+        slow_print(f' - Iron  : {self.iron}')
+        slow_print('ATTRIBUTES')
+        for attr, val in self.attributes.items():
+          slow_print(f' - {attr} : {val:>2d} ({self.get_attribute_modifier(attr):+d})')
+      elif choice == 'items':
+        if self.inventory.items:
+          slow_print('ITEMS')
+          self.inventory.print_item_enumeration_description_and_amount()
         else:
-          slow_print(f'├{"───┼" * (tmp_map.size - 1)}───┤')
-    slow_print('ATTRIBUTES')
-    for attr, val in self.attributes.items():
-      slow_print(f' - {attr} : {val:>2d} ({self.get_attribute_modifier(attr):+d})')
+          slow_print('Your bag is empty.')
+      elif choice == 'map':
+        if self.map is not None:
+          slow_print('MAP')
+          tmp_map = deepcopy(self.map)
+          tmp_map.set_location(self.location, '*')
+          slow_print(f'┌{"───┬" * (tmp_map.size - 1)}───┐')
+          for i in range(tmp_map.size):
+            slow_print(f'│ {" ┆ ".join([c for c in tmp_map.map[i]])} │')
+            if i+1 == tmp_map.size:
+              slow_print(f'└{"───┴" * (tmp_map.size - 1)}───┘')
+            else:
+              slow_print(f'├{"───┼" * (tmp_map.size - 1)}───┤')
+        else:
+          slow_print('Your map is empty.')
+      elif choice == 'attacks':
+        if isinstance(self, Fighter):
+          slow_print('WEAPONS')
+          for weapon in self.weapons:
+            slow_print(f' - {weapon.name}')
+          slow_print(f'EQUIPPED WEAPON : {self.equipped_weapon.name}.')
+        elif isinstance(self, Mage):
+          slow_print('SPELLS')
+          for spell in self.spells:
+            slow_print(f' - {spell.name}')
+      elif choice == 'return':
+        break
 
   def assign_attribute_points(self, *args):
     if self.attribute_points > 0:
       while self.attribute_points > 0:
+        slow_print(f'You have {self.attribute_points} AP.')
         choice = slow_input(
           'What attribute would you like to increase? [(l)um, (s)iz, (v)el, (f)inish]',
           shorthand_map={'l' : 'lum', 's' : 'siz', 'v' : 'vel', 'f' : 'finish'},
@@ -480,11 +521,20 @@ class Player:
     return self.roll_initiative() >= avg_monster_initiative
 
   def check_level_up(self):
-    if self.level < max_level:
-      if self.experience_points > level_to_xp_map[self.level+1]:
-        self.level += 1
-        self.attribute_points += attribute_points_per_level
-        slow_print(f'You leveled up to level {self.level}! You have {self.attribute_points} attribute points.')
+    leveled_up = False
+    while True:
+      if self.level < max_level:
+        if self.experience_points >= level_to_xp_map[self.level+1]:
+          self.level += 1
+          self.attribute_points += attribute_points_per_level
+          slow_print(f'You leveled up to level {self.level}!')
+          leveled_up = True
+        else:
+          break
+      else:
+        break
+    if leveled_up:
+      slow_print(f'You have {self.attribute_points} attribute points.')
 
   def save_game(self, labyrinth):
     save_game(self, labyrinth)
@@ -534,13 +584,6 @@ class Fighter(Player):
     else:
       slow_print('Oh no! You missed...')
 
-  def check(self, *args):
-    super().check()
-    slow_print('WEAPONS')
-    for weapon in self.weapons:
-      slow_print(f' - {weapon.name}')
-    slow_print(f'EQUIPPED WEAPON : {self.equipped_weapon.name}.')
-
 class Mage(Player):
   def __init__(self, start_location):
     super().__init__(start_location)
@@ -580,9 +623,3 @@ class Mage(Player):
         monster.hp = max(0, monster.hp - damage)
       else:
         slow_print(f'Oh no! You missed {monster.name}...')
-
-  def check(self, *args):
-    super().check()
-    slow_print('SPELLS')
-    for spell in self.spells:
-      slow_print(f' - {spell.name}')

@@ -55,8 +55,10 @@ class NormalRoom(Room):
     slow_print(f' - {len(self.doors)} doors')
     for door in self.doors:
       slow_print(f'   - a door to the ({door[0]}){door[1:]}')
-    for chest in self.treasure:
-      slow_print(f' - a {chest.size} chest')
+    if self.treasure:
+      slow_print(f' - {len(self.treasure)} chest(s)')
+      for chest in self.treasure:
+        slow_print(f'   - a {chest.size} chest')
     if self.monsters:
       slow_print(f' - {len(self.monsters):n} monsters')
     for monster in self.monsters:
@@ -73,10 +75,14 @@ class MerchantRoom(Room):
       Eclipse(),
       Supernova()
     ]
+    self.not_defeated = True
   def describe(self, player):
-    slow_print('Pinpricks of light gaze through you from the void.')
-    slow_print('"Iron for wares..."')
-    slow_print('The voice rends the silence and shakes your core...')
+    if self.not_defeated:
+      slow_print('Pinpricks of light gaze through you from the void.')
+      slow_print('"Iron for wares..."')
+      slow_print('The voice rends the silence and shakes your core...')
+    else:
+      slow_print('This room contains nothing.')
 
 class NebulaRoom(Room):
   def generate(self, dist_frac):

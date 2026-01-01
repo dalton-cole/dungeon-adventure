@@ -35,12 +35,12 @@ def print_settings():
 def set_options(*args):
   print_settings()
   while True:
-    slow_print('Which option would you like to change? [enter # of option to change or (d)one]')
+    slow_print('Which option would you like to change? [enter # of option to change or (r)eturn]')
     slow_print('You can change the following options:')
     for i, k in enumerate(options):
       slow_print(f' - [{i+1}] : {k}')
-    choice = slow_input('', shorthand_map={'d' : 'done'})
-    if choice != 'done':
+    choice = slow_input('', shorthand_map={'r' : 'return'})
+    if choice != 'return':
       try:
         choice = int(choice)-1
         choice_key = list(options.keys())[choice]
@@ -72,10 +72,11 @@ def slow_print(msg):
 def slow_input(msg, fn=str, shorthand_map={}, allowable_inputs=[]):
   while True:
     slow_print(msg)
+    inp = input('').lower().strip()
     try:
-      inp = fn(input('').lower().strip())
+      inp = fn(inp)
     except:
-      slow_print(f'Input not allowed! Try again...')
+      slow_print(f'Input "{inp}" is not allowed! Try again...')
       continue
     if shorthand_map:
       inp = shorthand_map[inp] if inp in shorthand_map else inp
