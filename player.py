@@ -10,13 +10,13 @@ from monsters import Monster, BlackHole, health_per_con_point
 from dungeon import NormalRoom, MerchantRoom, NebulaRoom, Map
 from weapons import MeleeWeapon, StarShard
 from spells import AttackSpell, SolarFlare
-from items import Item
+from items import Item, Elixir
 
 
 level_to_xp_map = {1 : 0}
 max_level = 10
 for i in range(2, max_level+1):
-  level_to_xp_map[i] = round(level_to_xp_map[i-1] + 15*(1.35**(i-2)))
+  level_to_xp_map[i] = round(level_to_xp_map[i-1] + 10*(1.35**(i-2)))
 attribute_points_per_level = 4
 
 allowable_actions = [
@@ -24,7 +24,7 @@ allowable_actions = [
   '(l)ook/ta(l)k',
   '(m)ove',
   '(o)pen',
-  'm(e)nu',
+  '(i)nterface',
   '(q)uit'
 ]
 action_shorthand_map = {
@@ -32,7 +32,7 @@ action_shorthand_map = {
   'l' : 'look',
   'm' : 'move',
   'o' : 'open',
-  'e' : 'menu',
+  'i' : 'interface',
   'q' : 'quit'
 }
 
@@ -67,8 +67,8 @@ class PlayerInventory:
   def __init__(self):
     self.items = defaultdict(int)
 
-  def add_item(self, item):
-    self.items[item] += 1
+  def add_item(self, item, number=1):
+    self.items[item] += number
 
   def remove_item(self, item):
     if self.items[item] == 1:
@@ -98,15 +98,16 @@ class Player:
   def __init__(self, start_location):
     self.iron = 0
     self.inventory = PlayerInventory()
+    self.inventory.add_item(Elixir(), number=3)
     self.weapons = set()
     self.spells = set()
     self.actions = {
-      'fight' : self.battle,
-      'look'  : self.look_around,
-      'move'  : self.move,
-      'open'  : self.open,
-      'menu'  : self.menu,
-      'quit'  : quit_game
+      'fight'     : self.battle,
+      'look'      : self.look_around,
+      'move'      : self.move,
+      'open'      : self.open,
+      'interface' : self.interface,
+      'quit'      : quit_game
     }
     self.battle_actions = {
       'attack' : self.attack_action,
@@ -212,12 +213,14 @@ class Player:
 
   def look_around(self, labyrinth):
     room = labyrinth.get_room(self.location)
-    room.describe(self)
     if isinstance(room, MerchantRoom):
       if room.not_defeated:
-        choice = slow_input('Do you address the halo of light? [y/n]', allowable_inputs=['y', 'n'])
-        if choice == 'y':
-          self.shop(room)
+        self.shop(room)
+      else:
+        room.describe(self)
+    else:
+      room.describe(self)
+
 
   def use_item(self, *args):
     if self.inventory.items:
@@ -304,7 +307,7 @@ class Player:
     self.location = tuple(loc)
     labyrinth.get_room(self.location).describe(self)
 
-  def menu(self, *args):
+  def interface(self, *args):
     while True:
       choice = slow_input(
         'What would you like to do? [(c)heck, (u)se, (a)ssign, (s)ave, (d)ata, (o)ptions, (r)eturn]',
@@ -392,15 +395,15 @@ class Player:
           break
         choice = choice.upper()
         amount = slow_input(
-          f'How many points to you assign to {choice}? [1 - {self.attribute_points}]',
+          f'How many points to you assign to {choice}? [0 - {self.attribute_points}]',
           int,
-          allowable_inputs=list(range(1, self.attribute_points+1))
+          allowable_inputs=list(range(self.attribute_points+1))
         )
         self.attributes[choice] += amount
         self.attribute_points -= amount
         if choice == 'SIZ':
           self.hp += amount * health_per_con_point
-        slow_print(f'{choice} is increased to {self.attributes[choice]}. You have {self.attribute_points} points left.')
+        slow_print(f'{choice} is now {self.attributes[choice]}. You have {self.attribute_points} points left.')
       self.assign_max_hp()
     else:
       slow_print('You do not have any points to assign!')
@@ -446,10 +449,13 @@ class Player:
                   slow_print(f'You have already purchased {item.name}!')
                   continue
               if 0 <= choice < len(room.items):
-                if self.iron >= item.price:
-                  slow_print(f'You purchase {item.name} for {item.price} Fe...')
-                  self.inventory.add_item(item)
-                  self.iron -= item.price
+                quantity = slow_input('How many would you like to buy? [0 - 20]', int, allowable_inputs=list(range(21))) if item.is_consumable else 1
+                if quantity == 0:
+                  continue
+                if self.iron >= item.price * quantity:
+                  slow_print(f'You purchase {str(quantity) + " " if item.is_consumable else ""}{item.name} for {item.price * quantity} Fe...')
+                  self.inventory.add_item(item, number=quantity)
+                  self.iron -= item.price * quantity
                   slow_print(f'Remaining iron: {self.iron}')
                   continue
                 else:
@@ -509,8 +515,9 @@ class Player:
         slow_print(f'Your equipped weapon has been changed to {self.equipped_weapon.name}.')
     while any([isinstance(i, AttackSpell) for i in self.inventory.items]):
       for item in self.inventory.items:
-        self.inventory.remove_item(item)
-        break
+        if isinstance(item, AttackSpell):
+          self.inventory.remove_item(item)
+          break
 
   def run(self, labyrinth, monsters):
     if self.escape_check(monsters):
@@ -565,11 +572,14 @@ class Fighter(Player):
     self.equipped_weapon = list(self.weapons)[0]
 
   def attack_action(self, labyrinth, monsters):
-    slow_print('Which enemy do you attack? ')
-    for i, monster in enumerate(monsters):
-      if monster.hp > 0:
-        slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
-    idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
+    if len(monsters) > 1:
+      slow_print('Which enemy do you attack? ')
+      for i, monster in enumerate(monsters):
+        if monster.hp > 0:
+          slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
+      idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
+    else:
+      idx = 1
     _monster = monsters[idx-1]
     self.attack(_monster)
     if _monster.hp <= 0:
@@ -604,11 +614,14 @@ class Mage(Player):
       slow_print(f' - [{i+1}] : {spell.name}')
     chosen_spell = list(self.spells)[slow_input('', int, allowable_inputs=list(range(1, len(self.spells)+1)))-1]
     if chosen_spell.range == 'single':
-      slow_print('Which enemy do you attack?')
-      for i, monster in enumerate(monsters):
-        if monster.hp > 0:
-          slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
-      idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
+      if len(monsters) > 1:
+        slow_print('Which enemy do you attack?')
+        for i, monster in enumerate(monsters):
+          if monster.hp > 0:
+            slow_print(f' - [{i+1}] : {monster.name} ({monster.hp}/{monster.max_hp} HP)')
+        idx = slow_input('', int, allowable_inputs=list(range(1, len(monsters)+1)))
+      else:
+        idx = 1
       self.attack([monsters[idx-1]], chosen_spell)
     elif chosen_spell.range == 'multiple':
       self.attack(monsters, chosen_spell)
@@ -617,6 +630,9 @@ class Mage(Player):
         if monster.hp <= 0:
           slow_print(f'{monster.name} has died!')
           self.experience_points += monster.xp_worth
+          if monster.iron:
+            slow_print(f'You pick up {monster.iron} iron...')
+            self.iron += monster.iron
           monsters.pop(i)
 
   def attack(self, monsters, spell):

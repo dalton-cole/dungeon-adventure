@@ -3,6 +3,12 @@
 from time import sleep
 
 
+def set_bool(inp):
+  if inp in ['true', 't', 'yes', 'y', '1']:
+    return True
+  else:
+    return False
+
 options = {
   'text delay' : 0.008,
   'autosave'   : False
@@ -24,7 +30,7 @@ option_ranges = {
 
 option_conversion_functions = {
   'text delay' : float,
-  'autosave'   : lambda x: x == 'true'
+  'autosave'   : set_bool
 }
 
 option_check_functions = {
@@ -67,7 +73,7 @@ def set_options(*args):
       slow_print('That option is not available!')
     else:
       break
-  print('Options have been saved.')
+  slow_print('Options have been saved.')
 
 def set_options_from_dict(opt_dict):
   options.update(opt_dict)

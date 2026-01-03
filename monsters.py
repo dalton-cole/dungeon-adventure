@@ -42,7 +42,7 @@ class Monster:
     return int(self.get_challenge_points() / 4)
 
   def get_iron(self):
-    return randint(round(self.xp_worth / 20), round(self.xp_worth / 10)) * 100
+    return randint(round(self.xp_worth / 4), round(self.xp_worth / 2)) * 100
 
 class WhiteDwarf(Monster):
   def __init__(self):
@@ -62,12 +62,12 @@ class GasGiant(Monster):
   def __init__(self):
     self.attributes = {
       'LUM' : 12,
-      'SIZ' : 8,
+      'SIZ' : 7,
       'VEL' : 8
     }
     super().__init__()
     self.AC = 12
-    self.max_damage = 6
+    self.max_damage = 5
     self.name = "Gas Giant"
     self.xp_worth = self.get_xp_worth()
     self.iron = self.get_iron()
@@ -76,12 +76,12 @@ class DarkMatter(Monster):
   def __init__(self):
     self.attributes = {
       'LUM' : 14,
-      'SIZ' : 12,
+      'SIZ' : 11,
       'VEL' : 10
     }
     super().__init__()
-    self.AC = 14
-    self.max_damage = 8
+    self.AC = 13
+    self.max_damage = 7
     self.name = "Dark Matter"
     self.xp_worth = self.get_xp_worth()
     self.iron = self.get_iron()

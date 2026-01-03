@@ -22,6 +22,7 @@ chest_size_to_iron = {
   'large'  : 1000,
   'huge'   : 5000
 }
+chest_items = [None, Elixir(), SuperElixir(), MegaElixir()]
 chest_size_to_item_weights = {
   'small'  : [0.60, 0.33, 0.05, 0.02],
   'medium' : [0.50, 0.30, 0.15, 0.05],
@@ -35,7 +36,7 @@ class TreasureChest:
   def __init__(self):
     self.size = choices(list(chest_sizes.keys()), weights=list(chest_sizes.values()))[0]
     self.iron = chest_size_to_iron[self.size]
-    self.item = choices([None, Elixir(), SuperElixir(), MegaElixir()], weights=chest_size_to_item_weights[self.size])[0]
+    self.item = choices(chest_items, weights=chest_size_to_item_weights[self.size])[0]
 
 class Room:
   def __init__(self, doors, dist_frac):
@@ -46,9 +47,9 @@ class Room:
 
 class NormalRoom(Room):
   def generate(self, dist_frac):
-    for _ in range(randint(0, max_chests_per_room)):
+    for _ in range(randint(1, max_chests_per_room)):
       self.treasure.append(TreasureChest())
-    for _ in range(randint(0, max_number_monsters_per_room)):
+    for _ in range(randint(1, max_number_monsters_per_room)):
       modified_weights = [v * dist_frac if idx > 1 else v for idx, v in enumerate(available_monsters.values())]
       modified_weights = [v / sum(modified_weights) for v in modified_weights]
       self.monsters.append(choices(list(available_monsters.keys()), weights=modified_weights)[0]())
