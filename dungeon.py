@@ -130,6 +130,7 @@ class Labyrinth:
       self.map = Map(self.size)
       for i in range(self.size):
         for j in range(self.size):
+          distance_fraction = ((abs(i - self.start_location[0])**2 + abs(j - self.start_location[1])**2)**0.5) / ((self.size-1) * 2**0.5)
           doors = []
           if i > 0:
             doors.append('north')
@@ -139,8 +140,13 @@ class Labyrinth:
             doors.append('west')
           if j+1 < self.size:
             doors.append('east')
-          distance_fraction = ((abs(i - self.start_location[0])**2 + abs(j - self.start_location[1])**2)**0.5) / ((self.size-1) * 2**0.5)
-          self.map.set_location((i, j), choices([NormalRoom, MerchantRoom, NebulaRoom], [0.8, 0.1, 0.1])[0](doors, distance_fraction))
+          self.map.set_location(
+            (i, j),
+            choices(
+              [NormalRoom, MerchantRoom, NebulaRoom],
+              [0.8, 0.1 if distance_fraction > 0. else 0., 0.1 if distance_fraction > 0. else 0.]
+            )[0](doors, distance_fraction)
+          )
       if any([room.monsters for room in self.map.ravel()]) and any([isinstance(room, MerchantRoom) for room in self.map.ravel()]):
         break
 
