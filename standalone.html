@@ -163,7 +163,8 @@ class PrintModule:
     def slow_input(msg, fn=str, shorthand_map={}, allowable_inputs=[]):
         while True:
             # Terminal mode - input() will display the prompt
-            inp = input(msg).lower().strip()
+            # Don't print msg here - input() already shows it
+            inp = input(msg + ' ').lower().strip()
             try:
                 inp = fn(inp)
             except:
@@ -305,7 +306,7 @@ asyncio.ensure_future(main())
     </script>
 
     <script>
-        // Smooth mobile terminal handling
+        // Smooth mobile terminal handling with aggressive keyboard scrolling
         let terminal;
         let isScrolling = false;
 
@@ -323,15 +324,13 @@ asyncio.ensure_future(main())
             const inputs = terminal?.querySelectorAll('input');
             if (inputs && inputs.length > 0) {
                 const lastInput = inputs[inputs.length - 1];
-                if (document.activeElement === lastInput) {
-                    // Use passive scroll to avoid jank
-                    const rect = lastInput.getBoundingClientRect();
-                    const terminalRect = terminal.getBoundingClientRect();
-
-                    // Only scroll if input is not visible
-                    if (rect.bottom > terminalRect.bottom - 20 || rect.top < terminalRect.top) {
-                        terminal.scrollTop = terminal.scrollHeight;
-                    }
+                // Always scroll to bottom when there's an active input
+                if (lastInput) {
+                    smoothScrollToBottom();
+                    // Also try to scroll the input into view
+                    setTimeout(() => {
+                        lastInput.scrollIntoView({ behavior: 'instant', block: 'end' });
+                    }, 100);
                 }
             }
         }
@@ -343,7 +342,10 @@ asyncio.ensure_future(main())
                 let debounceTimer;
                 const observer = new MutationObserver(() => {
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(smoothScrollToBottom, 50);
+                    debounceTimer = setTimeout(() => {
+                        smoothScrollToBottom();
+                        ensureInputVisible();
+                    }, 50);
                 });
                 observer.observe(terminal, {
                     childList: true,
@@ -351,29 +353,43 @@ asyncio.ensure_future(main())
                     characterData: true
                 });
 
-                // Handle window resize (keyboard open/close) smoothly
+                // Handle window resize (keyboard open/close) more aggressively
                 let resizeTimer;
                 window.addEventListener('resize', () => {
                     clearTimeout(resizeTimer);
                     resizeTimer = setTimeout(() => {
                         smoothScrollToBottom();
                         ensureInputVisible();
-                    }, 150);
+                    }, 100);
                 }, { passive: true });
 
                 // Visual viewport API for better mobile keyboard handling
                 if (window.visualViewport) {
+                    let lastHeight = window.visualViewport.height;
+
                     window.visualViewport.addEventListener('resize', () => {
-                        clearTimeout(resizeTimer);
-                        resizeTimer = setTimeout(smoothScrollToBottom, 100);
+                        const currentHeight = window.visualViewport.height;
+                        // If viewport shrunk (keyboard opened)
+                        if (currentHeight < lastHeight) {
+                            setTimeout(() => {
+                                smoothScrollToBottom();
+                                ensureInputVisible();
+                            }, 50);
+                        }
+                        lastHeight = currentHeight;
+                    }, { passive: true });
+
+                    window.visualViewport.addEventListener('scroll', () => {
+                        smoothScrollToBottom();
                     }, { passive: true });
                 }
 
-                // Check input visibility less frequently
+                // Aggressively check for input visibility when keyboard might be open
                 let checkInterval;
                 const startChecking = () => {
                     if (checkInterval) clearInterval(checkInterval);
-                    checkInterval = setInterval(ensureInputVisible, 500);
+                    // Check more frequently
+                    checkInterval = setInterval(ensureInputVisible, 200);
                 };
 
                 const stopChecking = () => {
@@ -383,8 +399,18 @@ asyncio.ensure_future(main())
                     }
                 };
 
-                // Only check when terminal has focus
-                terminal.addEventListener('focusin', startChecking);
+                // Watch for input focus events
+                terminal.addEventListener('focusin', (e) => {
+                    if (e.target.tagName === 'INPUT') {
+                        startChecking();
+                        // Immediate scroll when input focused
+                        setTimeout(() => {
+                            smoothScrollToBottom();
+                            ensureInputVisible();
+                        }, 300); // Delay for keyboard animation
+                    }
+                });
+
                 terminal.addEventListener('focusout', stopChecking);
             } else {
                 setTimeout(initTerminal, 100);
