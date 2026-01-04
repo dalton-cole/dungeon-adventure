@@ -41,16 +41,22 @@
             bottom: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            background: transparent;
             color: #00ff00;
             font-family: 'Courier New', 'Consolas', monospace;
             font-size: 14px;
             line-height: 1.5;
             padding: 10px;
-            padding-bottom: env(safe-area-inset-bottom, 10px);
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
             overflow-y: auto;
+            overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             box-sizing: border-box;
+            /* Smooth scrolling */
+            scroll-behavior: smooth;
+            /* Prevent pull-to-refresh */
+            touch-action: pan-y;
         }
 
         py-terminal::-webkit-scrollbar {
@@ -63,12 +69,33 @@
 
         py-terminal::-webkit-scrollbar-thumb {
             background: #333;
+            border-radius: 4px;
         }
 
-        /* Mobile keyboard handling */
+        /* Mobile optimizations */
         @media screen and (max-width: 768px) {
             py-terminal {
-                height: 100dvh; /* Dynamic viewport height adjusts for keyboard */
+                /* Use dynamic viewport height for keyboard handling */
+                height: 100dvh;
+                /* Smaller font on mobile */
+                font-size: 13px;
+                /* Less padding on mobile */
+                padding: 8px;
+                padding-bottom: max(20px, env(safe-area-inset-bottom));
+            }
+
+            /* Hide scrollbar on mobile for cleaner look */
+            py-terminal::-webkit-scrollbar {
+                display: none;
+            }
+        }
+
+        /* Prevent text selection jank on mobile */
+        @media (hover: none) and (pointer: coarse) {
+            py-terminal {
+                -webkit-user-select: text;
+                user-select: text;
+                -webkit-touch-callout: none;
             }
         }
     </style>
@@ -269,40 +296,87 @@ asyncio.ensure_future(main())
     </script>
 
     <script>
-        // Auto-scroll terminal when keyboard opens on mobile
+        // Smooth mobile terminal handling
         let terminal;
+        let isScrolling = false;
 
-        function scrollToBottom() {
-            if (terminal) {
-                terminal.scrollTop = terminal.scrollHeight;
+        function smoothScrollToBottom() {
+            if (terminal && !isScrolling) {
+                isScrolling = true;
+                requestAnimationFrame(() => {
+                    terminal.scrollTop = terminal.scrollHeight;
+                    isScrolling = false;
+                });
             }
         }
 
-        // Wait for terminal to be ready
+        function ensureInputVisible() {
+            const inputs = terminal?.querySelectorAll('input');
+            if (inputs && inputs.length > 0) {
+                const lastInput = inputs[inputs.length - 1];
+                if (document.activeElement === lastInput) {
+                    // Use passive scroll to avoid jank
+                    const rect = lastInput.getBoundingClientRect();
+                    const terminalRect = terminal.getBoundingClientRect();
+
+                    // Only scroll if input is not visible
+                    if (rect.bottom > terminalRect.bottom - 20 || rect.top < terminalRect.top) {
+                        terminal.scrollTop = terminal.scrollHeight;
+                    }
+                }
+            }
+        }
+
         function initTerminal() {
             terminal = document.querySelector('py-terminal');
             if (terminal) {
-                // Scroll on any input focus
+                // Use MutationObserver with debouncing
+                let debounceTimer;
                 const observer = new MutationObserver(() => {
-                    setTimeout(scrollToBottom, 100);
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(smoothScrollToBottom, 50);
                 });
-                observer.observe(terminal, { childList: true, subtree: true });
+                observer.observe(terminal, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true
+                });
 
-                // Scroll when window resizes (keyboard open/close)
+                // Handle window resize (keyboard open/close) smoothly
+                let resizeTimer;
                 window.addEventListener('resize', () => {
-                    setTimeout(scrollToBottom, 100);
-                });
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => {
+                        smoothScrollToBottom();
+                        ensureInputVisible();
+                    }, 150);
+                }, { passive: true });
 
-                // Periodic check to ensure input is visible
-                setInterval(() => {
-                    const inputs = terminal.querySelectorAll('input');
-                    if (inputs.length > 0) {
-                        const lastInput = inputs[inputs.length - 1];
-                        if (document.activeElement === lastInput) {
-                            lastInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                        }
+                // Visual viewport API for better mobile keyboard handling
+                if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', () => {
+                        clearTimeout(resizeTimer);
+                        resizeTimer = setTimeout(smoothScrollToBottom, 100);
+                    }, { passive: true });
+                }
+
+                // Check input visibility less frequently
+                let checkInterval;
+                const startChecking = () => {
+                    if (checkInterval) clearInterval(checkInterval);
+                    checkInterval = setInterval(ensureInputVisible, 500);
+                };
+
+                const stopChecking = () => {
+                    if (checkInterval) {
+                        clearInterval(checkInterval);
+                        checkInterval = null;
                     }
-                }, 200);
+                };
+
+                // Only check when terminal has focus
+                terminal.addEventListener('focusin', startChecking);
+                terminal.addEventListener('focusout', stopChecking);
             } else {
                 setTimeout(initTerminal, 100);
             }
