@@ -155,26 +155,36 @@ async def fetch_file(filename):
 class PrintModule:
     options = {'text delay': 0, 'autosave': False}
 
+    # Track last printed message to avoid duplicates
+    _last_printed = None
+
     @staticmethod
     def slow_print(msg):
-        print(msg)
+        # Only print if it's not the same as the last message
+        # This prevents duplicate prompts
+        if msg != PrintModule._last_printed:
+            print(msg)
+            PrintModule._last_printed = msg
 
     @staticmethod
     def slow_input(msg, fn=str, shorthand_map={}, allowable_inputs=[]):
         while True:
-            # Terminal mode - input() will display the prompt
-            # Don't print msg here - input() already shows it
-            inp = input(msg + ' ').lower().strip()
+            # The game code calls slow_print(msg) before this
+            # So we use empty prompt to avoid duplication
+            inp = input('').lower().strip()
             try:
                 inp = fn(inp)
             except:
                 print(f'Input "{inp}" is not allowed! Try again...')
+                PrintModule._last_printed = None  # Reset to allow error message
                 continue
             if shorthand_map:
                 inp = shorthand_map.get(inp, inp)
             if allowable_inputs and inp not in allowable_inputs:
                 print(f'Input "{inp}" is not allowed! Try again...')
+                PrintModule._last_printed = None  # Reset to allow error message
                 continue
+            PrintModule._last_printed = None  # Reset for next prompt
             return inp
 
     @staticmethod
@@ -306,115 +316,95 @@ asyncio.ensure_future(main())
     </script>
 
     <script>
-        // Smooth mobile terminal handling with aggressive keyboard scrolling
+        // Mobile keyboard handling with viewport-based padding adjustment
         let terminal;
-        let isScrolling = false;
 
-        function smoothScrollToBottom() {
-            if (terminal && !isScrolling) {
-                isScrolling = true;
-                requestAnimationFrame(() => {
-                    terminal.scrollTop = terminal.scrollHeight;
-                    isScrolling = false;
-                });
+        function updateTerminalPadding() {
+            if (!terminal || !window.visualViewport) return;
+
+            const viewportHeight = window.visualViewport.height;
+            const windowHeight = window.innerHeight;
+            const keyboardHeight = windowHeight - viewportHeight;
+
+            // If keyboard is open (viewport is smaller than window)
+            if (keyboardHeight > 100) {
+                // Add bottom padding to prevent content from being hidden
+                terminal.style.paddingBottom = `${keyboardHeight + 20}px`;
+            } else {
+                // Reset to default padding
+                terminal.style.paddingBottom = '';
             }
+
+            // Scroll to bottom
+            requestAnimationFrame(() => {
+                terminal.scrollTop = terminal.scrollHeight;
+            });
         }
 
         function ensureInputVisible() {
-            const inputs = terminal?.querySelectorAll('input');
-            if (inputs && inputs.length > 0) {
+            if (!terminal) return;
+
+            const inputs = terminal.querySelectorAll('input');
+            if (inputs.length > 0) {
                 const lastInput = inputs[inputs.length - 1];
-                // Always scroll to bottom when there's an active input
-                if (lastInput) {
-                    smoothScrollToBottom();
-                    // Also try to scroll the input into view
-                    setTimeout(() => {
-                        lastInput.scrollIntoView({ behavior: 'instant', block: 'end' });
-                    }, 100);
-                }
+
+                // Scroll terminal to bottom
+                terminal.scrollTop = terminal.scrollHeight;
+
+                // Also ensure input is in view
+                setTimeout(() => {
+                    lastInput.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                }, 100);
             }
         }
 
         function initTerminal() {
             terminal = document.querySelector('py-terminal');
-            if (terminal) {
-                // Use MutationObserver with debouncing
-                let debounceTimer;
-                const observer = new MutationObserver(() => {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => {
-                        smoothScrollToBottom();
-                        ensureInputVisible();
-                    }, 50);
-                });
-                observer.observe(terminal, {
-                    childList: true,
-                    subtree: true,
-                    characterData: true
-                });
-
-                // Handle window resize (keyboard open/close) more aggressively
-                let resizeTimer;
-                window.addEventListener('resize', () => {
-                    clearTimeout(resizeTimer);
-                    resizeTimer = setTimeout(() => {
-                        smoothScrollToBottom();
-                        ensureInputVisible();
-                    }, 100);
-                }, { passive: true });
-
-                // Visual viewport API for better mobile keyboard handling
-                if (window.visualViewport) {
-                    let lastHeight = window.visualViewport.height;
-
-                    window.visualViewport.addEventListener('resize', () => {
-                        const currentHeight = window.visualViewport.height;
-                        // If viewport shrunk (keyboard opened)
-                        if (currentHeight < lastHeight) {
-                            setTimeout(() => {
-                                smoothScrollToBottom();
-                                ensureInputVisible();
-                            }, 50);
-                        }
-                        lastHeight = currentHeight;
-                    }, { passive: true });
-
-                    window.visualViewport.addEventListener('scroll', () => {
-                        smoothScrollToBottom();
-                    }, { passive: true });
-                }
-
-                // Aggressively check for input visibility when keyboard might be open
-                let checkInterval;
-                const startChecking = () => {
-                    if (checkInterval) clearInterval(checkInterval);
-                    // Check more frequently
-                    checkInterval = setInterval(ensureInputVisible, 200);
-                };
-
-                const stopChecking = () => {
-                    if (checkInterval) {
-                        clearInterval(checkInterval);
-                        checkInterval = null;
-                    }
-                };
-
-                // Watch for input focus events
-                terminal.addEventListener('focusin', (e) => {
-                    if (e.target.tagName === 'INPUT') {
-                        startChecking();
-                        // Immediate scroll when input focused
-                        setTimeout(() => {
-                            smoothScrollToBottom();
-                            ensureInputVisible();
-                        }, 300); // Delay for keyboard animation
-                    }
-                });
-
-                terminal.addEventListener('focusout', stopChecking);
-            } else {
+            if (!terminal) {
                 setTimeout(initTerminal, 100);
+                return;
             }
+
+            // Watch for content changes
+            const observer = new MutationObserver(() => {
+                requestAnimationFrame(() => {
+                    updateTerminalPadding();
+                    ensureInputVisible();
+                });
+            });
+
+            observer.observe(terminal, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+
+            // Visual Viewport API - the key to proper keyboard handling
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', updateTerminalPadding);
+                window.visualViewport.addEventListener('scroll', updateTerminalPadding);
+            }
+
+            // Fallback for browsers without Visual Viewport API
+            window.addEventListener('resize', updateTerminalPadding);
+
+            // Watch for input focus
+            terminal.addEventListener('focusin', (e) => {
+                if (e.target.tagName === 'INPUT') {
+                    // Delay to let keyboard animation finish
+                    setTimeout(() => {
+                        updateTerminalPadding();
+                        ensureInputVisible();
+                    }, 400);
+                }
+            });
+
+            // Initial update
+            updateTerminalPadding();
         }
 
         // Start when DOM is ready
