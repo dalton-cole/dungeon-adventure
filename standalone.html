@@ -157,24 +157,24 @@ class PrintModule:
 
     @staticmethod
     def slow_print(msg):
-        # Always print the message
+        # Just print the message (replaces slow print effect with instant print)
         print(msg)
 
     @staticmethod
     def slow_input(msg, fn=str, shorthand_map={}, allowable_inputs=[]):
-        # Game code calls slow_print(msg) before calling slow_input
-        # So msg has already been printed - don't print it again
+        # Don't print the prompt - PyScript terminal echoes it automatically
+        # The original game calls slow_print(msg) but in browser this creates duplicates
         while True:
-            inp = input('').lower().strip()
+            inp = input(msg).lower().strip()
             try:
                 inp = fn(inp)
             except:
-                print(f'Input "{inp}" is not allowed! Try again...')
+                PrintModule.slow_print(f'Input "{inp}" is not allowed! Try again...')
                 continue
             if shorthand_map:
                 inp = shorthand_map.get(inp, inp)
             if allowable_inputs and inp not in allowable_inputs:
-                print(f'Input "{inp}" is not allowed! Try again...')
+                PrintModule.slow_print(f'Input "{inp}" is not allowed! Try again...')
                 continue
             return inp
 
