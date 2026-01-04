@@ -155,36 +155,27 @@ async def fetch_file(filename):
 class PrintModule:
     options = {'text delay': 0, 'autosave': False}
 
-    # Track last printed message to avoid duplicates
-    _last_printed = None
-
     @staticmethod
     def slow_print(msg):
-        # Only print if it's not the same as the last message
-        # This prevents duplicate prompts
-        if msg != PrintModule._last_printed:
-            print(msg)
-            PrintModule._last_printed = msg
+        # Always print the message
+        print(msg)
 
     @staticmethod
     def slow_input(msg, fn=str, shorthand_map={}, allowable_inputs=[]):
+        # Game code calls slow_print(msg) before calling slow_input
+        # So msg has already been printed - don't print it again
         while True:
-            # The game code calls slow_print(msg) before this
-            # So we use empty prompt to avoid duplication
             inp = input('').lower().strip()
             try:
                 inp = fn(inp)
             except:
                 print(f'Input "{inp}" is not allowed! Try again...')
-                PrintModule._last_printed = None  # Reset to allow error message
                 continue
             if shorthand_map:
                 inp = shorthand_map.get(inp, inp)
             if allowable_inputs and inp not in allowable_inputs:
                 print(f'Input "{inp}" is not allowed! Try again...')
-                PrintModule._last_printed = None  # Reset to allow error message
                 continue
-            PrintModule._last_printed = None  # Reset for next prompt
             return inp
 
     @staticmethod
@@ -318,27 +309,40 @@ asyncio.ensure_future(main())
     <script>
         // Mobile keyboard handling with viewport-based padding adjustment
         let terminal;
+        let initialHeight = window.innerHeight;
 
         function updateTerminalPadding() {
-            if (!terminal || !window.visualViewport) return;
+            if (!terminal) return;
 
-            const viewportHeight = window.visualViewport.height;
-            const windowHeight = window.innerHeight;
-            const keyboardHeight = windowHeight - viewportHeight;
+            let keyboardHeight = 0;
 
-            // If keyboard is open (viewport is smaller than window)
-            if (keyboardHeight > 100) {
-                // Add bottom padding to prevent content from being hidden
-                terminal.style.paddingBottom = `${keyboardHeight + 20}px`;
+            // Try Visual Viewport API first (more reliable)
+            if (window.visualViewport) {
+                const viewportHeight = window.visualViewport.height;
+                const windowHeight = window.innerHeight;
+                keyboardHeight = Math.max(0, windowHeight - viewportHeight);
             } else {
-                // Reset to default padding
-                terminal.style.paddingBottom = '';
+                // Fallback: compare current height to initial height
+                keyboardHeight = Math.max(0, initialHeight - window.innerHeight);
             }
 
-            // Scroll to bottom
-            requestAnimationFrame(() => {
-                terminal.scrollTop = terminal.scrollHeight;
-            });
+            // If keyboard is open (significant height difference)
+            if (keyboardHeight > 50) {
+                // Add bottom padding equal to keyboard height
+                terminal.style.paddingBottom = `${keyboardHeight + 40}px !important`;
+
+                // Scroll to bottom after a delay
+                setTimeout(() => {
+                    terminal.scrollTop = terminal.scrollHeight;
+                }, 100);
+            } else {
+                // Reset to default mobile/desktop padding
+                if (window.innerWidth <= 768) {
+                    terminal.style.paddingBottom = 'max(20px, env(safe-area-inset-bottom))';
+                } else {
+                    terminal.style.paddingBottom = 'max(10px, env(safe-area-inset-bottom))';
+                }
+            }
         }
 
         function ensureInputVisible() {
@@ -349,16 +353,17 @@ asyncio.ensure_future(main())
                 const lastInput = inputs[inputs.length - 1];
 
                 // Scroll terminal to bottom
-                terminal.scrollTop = terminal.scrollHeight;
+                requestAnimationFrame(() => {
+                    terminal.scrollTop = terminal.scrollHeight;
+                });
 
-                // Also ensure input is in view
+                // Also scroll input into view
                 setTimeout(() => {
                     lastInput.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest',
-                        inline: 'nearest'
+                        behavior: 'instant',
+                        block: 'end'
                     });
-                }, 100);
+                }, 150);
             }
         }
 
@@ -371,35 +376,41 @@ asyncio.ensure_future(main())
 
             // Watch for content changes
             const observer = new MutationObserver(() => {
-                requestAnimationFrame(() => {
-                    updateTerminalPadding();
+                setTimeout(() => {
                     ensureInputVisible();
-                });
+                }, 50);
             });
 
             observer.observe(terminal, {
                 childList: true,
-                subtree: true,
-                characterData: true
+                subtree: true
             });
 
-            // Visual Viewport API - the key to proper keyboard handling
+            // Visual Viewport API - best for mobile keyboard detection
             if (window.visualViewport) {
-                window.visualViewport.addEventListener('resize', updateTerminalPadding);
-                window.visualViewport.addEventListener('scroll', updateTerminalPadding);
+                window.visualViewport.addEventListener('resize', () => {
+                    updateTerminalPadding();
+                    setTimeout(ensureInputVisible, 200);
+                });
             }
 
-            // Fallback for browsers without Visual Viewport API
-            window.addEventListener('resize', updateTerminalPadding);
+            // Regular window resize as fallback
+            window.addEventListener('resize', () => {
+                updateTerminalPadding();
+                setTimeout(ensureInputVisible, 200);
+            });
 
-            // Watch for input focus
+            // Watch for input focus - trigger keyboard adjustment
             terminal.addEventListener('focusin', (e) => {
                 if (e.target.tagName === 'INPUT') {
-                    // Delay to let keyboard animation finish
+                    // Multiple attempts to handle keyboard opening
+                    setTimeout(updateTerminalPadding, 100);
+                    setTimeout(updateTerminalPadding, 300);
+                    setTimeout(updateTerminalPadding, 500);
                     setTimeout(() => {
                         updateTerminalPadding();
                         ensureInputVisible();
-                    }, 400);
+                    }, 700);
                 }
             });
 
