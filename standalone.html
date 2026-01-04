@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Dungeon Adventure</title>
+
+    <!-- Enable cross-origin isolation for GitHub Pages (enables SharedArrayBuffer for input()) -->
+    <script src="./coi-serviceworker.js"></script>
+
+    <!-- PyScript -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #000;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+
+        py-terminal {
+            display: block !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 10px;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            box-sizing: border-box;
+        }
+
+        py-terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        py-terminal::-webkit-scrollbar-track {
+            background: #000;
+        }
+
+        py-terminal::-webkit-scrollbar-thumb {
+            background: #333;
+        }
+
+        /* Mobile keyboard handling */
+        @media screen and (max-width: 768px) {
+            py-terminal {
+                height: 100dvh; /* Dynamic viewport height adjusts for keyboard */
+            }
+        }
+    </style>
+</head>
+<body>
+    <py-terminal></py-terminal>
+
+    <!-- PyScript Configuration -->
+    <py-config>
+        [[fetch]]
+        files = [
+            "https://raw.githubusercontent.com/zdodson94/dungeon-adventure/main/monsters.py",
+            "https://raw.githubusercontent.com/zdodson94/dungeon-adventure/main/weapons.py",
+            "https://raw.githubusercontent.com/zdodson94/dungeon-adventure/main/spells.py",
+            "https://raw.githubusercontent.com/zdodson94/dungeon-adventure/main/items.py",
+            "https://raw.githubusercontent.com/zdodson94/dungeon-adventure/main/dungeon.py",
+            "https://raw.githubusercontent.com/zdodson94/dungeon-adventure/main/player.py",
+        ]
+    </py-config>
+
+    <script type="py" terminal worker>
+import sys
+import asyncio
+from pyodide.http import pyfetch
+from js import document
+
+# Minimal output during loading
+
+GITHUB_USER = "zdodson94"
+GITHUB_REPO = "dungeon-adventure"
+GITHUB_BRANCH = "main"
+
+BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}"
+
+async def fetch_file(filename):
+    """Fetch a Python file from GitHub"""
+    url = f"{BASE_URL}/{filename}"
+    response = await pyfetch(url)
+    if response.status == 200:
+        content = await response.string()
+        return content
+    else:
+        raise Exception(f"Failed to fetch {filename}: HTTP {response.status}")
+
+# Create browser-compatible versions of modules
+
+# Mock print module (disable slow print for browser)
+class PrintModule:
+    options = {'text delay': 0, 'autosave': False}
+
+    @staticmethod
+    def slow_print(msg):
+        print(msg)
+
+    @staticmethod
+    def slow_input(msg, fn=str, shorthand_map={}, allowable_inputs=[]):
+        while True:
+            # Terminal mode - input() will display the prompt
+            inp = input(msg).lower().strip()
+            try:
+                inp = fn(inp)
+            except:
+                print(f'Input "{inp}" is not allowed! Try again...')
+                continue
+            if shorthand_map:
+                inp = shorthand_map.get(inp, inp)
+            if allowable_inputs and inp not in allowable_inputs:
+                print(f'Input "{inp}" is not allowed! Try again...')
+                continue
+            return inp
+
+    @staticmethod
+    def set_options(*args):
+        print("Options menu disabled in browser version")
+
+    @staticmethod
+    def set_options_from_dict(opt_dict):
+        pass
+
+sys.modules['print'] = PrintModule()
+
+# Mock save module (no file I/O in browser)
+class SaveModule:
+    save_path = "./saves"
+    options = {'autosave': False}
+
+    @staticmethod
+    def save_game(*args, **kwargs):
+        print("⚠️  Save disabled in browser version")
+
+    @staticmethod
+    def save_data(*args):
+        print("⚠️  Save disabled in browser version")
+
+    @staticmethod
+    def load_data(path):
+        return None, None, {}
+
+    @staticmethod
+    def print_existing_save_files():
+        print("⚠️  Save/load disabled in browser version")
+
+    @staticmethod
+    def get_existing_save_files():
+        return []
+
+    @staticmethod
+    def autosave(*args):
+        pass
+
+    @staticmethod
+    def edit_save_data(*args):
+        pass
+
+    @staticmethod
+    def set_options_from_dict(opt_dict):
+        pass
+
+sys.modules['save'] = SaveModule()
+
+# Main async function
+async def main():
+    try:
+        print("Starting to load game files...")
+
+        # Fetch all files in dependency order
+        files_to_load = [
+            ('items.py', 'items'),        # No dependencies
+            ('weapons.py', 'weapons'),    # Depends on items
+            ('spells.py', 'spells'),      # No dependencies
+            ('monsters.py', 'monsters'),  # No dependencies
+            ('dungeon.py', 'dungeon'),    # Depends on monsters, items, weapons, spells
+            ('player.py', 'player'),      # Depends on everything
+        ]
+
+        for filename, module_name in files_to_load:
+            print(f"Fetching {filename}...")
+            code = await fetch_file(filename)
+            print(f"Loaded {filename}")
+
+            # Execute the code and create a module
+            import types
+            module = types.ModuleType(module_name)
+            sys.modules[module_name] = module
+            exec(code, module.__dict__)
+
+        # Now import them
+        print("Importing modules...")
+        import monsters
+        import weapons
+        import spells
+        import items
+        import dungeon
+        import player
+        print("All modules loaded successfully!")
+
+        print("Ready to start game!\n")
+
+        # Game loop (simplified for browser - no save/load)
+        labyrinth_size = PrintModule.slow_input(
+            'What size of labyrinth would you like? [3 - 7]',
+            int,
+            allowable_inputs=list(range(3, 8))
+        )
+
+        the_labyrinth = dungeon.Labyrinth(labyrinth_size)
+
+        player_class = PrintModule.slow_input(
+            'Player class [(f)ighter or (m)age]:',
+            shorthand_map={'f': 'fighter', 'm': 'mage'},
+            allowable_inputs=['fighter', 'mage']
+        )
+
+        if player_class == 'fighter':
+            the_player = player.Fighter(the_labyrinth.start_location)
+        else:
+            the_player = player.Mage(the_labyrinth.start_location)
+
+        # Game loop
+        print('You wake up in a dimly lit room.')
+        print('You sense a darkness that you must destroy...')
+        the_labyrinth.get_room(the_player.location).describe(the_player)
+
+        while any(room.monsters for room in the_labyrinth.map.ravel()):
+            the_player.action(the_labyrinth)
+
+        print('\nYou lit up the dark! A portal to home opens...you win!')
+        print('\nRefresh the page to play again.')
+
+    except Exception as e:
+        print(f"\nError: {e}")
+        import traceback
+        traceback.print_exc()
+
+# Run the main function
+import asyncio
+asyncio.ensure_future(main())
+    </script>
+
+    <script>
+        // Auto-scroll terminal when keyboard opens on mobile
+        let terminal;
+
+        function scrollToBottom() {
+            if (terminal) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+
+        // Wait for terminal to be ready
+        function initTerminal() {
+            terminal = document.querySelector('py-terminal');
+            if (terminal) {
+                // Scroll on any input focus
+                const observer = new MutationObserver(() => {
+                    setTimeout(scrollToBottom, 100);
+                });
+                observer.observe(terminal, { childList: true, subtree: true });
+
+                // Scroll when window resizes (keyboard open/close)
+                window.addEventListener('resize', () => {
+                    setTimeout(scrollToBottom, 100);
+                });
+
+                // Periodic check to ensure input is visible
+                setInterval(() => {
+                    const inputs = terminal.querySelectorAll('input');
+                    if (inputs.length > 0) {
+                        const lastInput = inputs[inputs.length - 1];
+                        if (document.activeElement === lastInput) {
+                            lastInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                        }
+                    }
+                }, 200);
+            } else {
+                setTimeout(initTerminal, 100);
+            }
+        }
+
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initTerminal);
+        } else {
+            initTerminal();
+        }
+    </script>
+</body>
+</html>
